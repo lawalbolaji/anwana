@@ -1,0 +1,22 @@
+# Experimentation
+
+# Transcription
+#                                                   local       vm (us-east-1)
+# audio_path = "gpt_question_1.m4a" # 7  seconds -> 2014ms      1146ms          "How many presidents has Nigeria had since 1978?"
+# audio_path = "gpt_question_2.m4a" # 25 seconds -> 2701ms      1704ms          "I'm trying to decide what to do on my next trip to France. I have a couple of friends that live in Paris, some of them live in Bordeaux and a couple in Marseille. Right now I need to figure out what's the best plan for me to make the best use of my time and spend the least amount of money. Well, there."
+# audio_path = "gpt_question_3.m4a" # 13 seconds -> 2477ms      1452ms          "Do you know how long it takes to cook Jollof rice from scratch? Assuming you already have all of the ingredients. Tell me how long you think it takes and walk me through all of the steps involved."
+# audio_path = "gpt_question_4.m4a" # 61 seconds -> 5170ms      3288ms          "..."
+
+# Original Prompt - "You are a helpful assistant that helps me general knowledge questions. You want to prioritize the shortest answers but in any case, you answer must not exceed 20 words"
+
+# Actual prompt response time
+# prompt1    937ms -> 2500ms  "Nigeria has had 12 presidents since 1978" | "15 presidents." | "As of 2023, Nigeria has had 12 presidents since 1978."
+# prompt2   1377ms -> 1744ms  "Visit Paris first, then take trains to Bordeaux and Marseille. Trains are efficient and often reasonably priced." | "Visit Paris first, then Bordeaux. South to Marseille last. Use trains for budget-friendly travel between cities."
+# prompt3   1896ms -> 11441ms "...short recipe..."
+# prompt4   1436ms -> 1620ms  "Nice to meet you, Abdurashid! Sounds like you have extensive experience in full-stack development. How can I assist you today?" | "Impressive experience, Abdurashid! How can I assist you today?"
+
+
+# text to speech
+# prompt1   1498ms -> 1846ms
+# prompt2   1961ms -> 2568ms
+# prompt4   2103ms -> 2595ms
