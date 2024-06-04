@@ -5,16 +5,18 @@ export default function AudioVisualizer({ audioSrc }: { audioSrc: string }) {
     const mountRef = useRef<HTMLDivElement>(null);
     const sceneRef = useRef(new THREE.Scene());
     const cameraRef = useRef(new THREE.PerspectiveCamera(75, 1, 0.1, 1000));
-    const rendererRef = useRef(new THREE.WebGLRenderer());
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
     const capsulesRef = useRef<Array<THREE.Mesh>>([]);
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
-    const audioElementRef = useRef<HTMLAudioElement>(null);
     const animationIdRef = useRef<number | null>(null);
 
     useEffect(() => {
-        const audioElRefObserver = audioElementRef.current;
-        const rendererRefObserver = rendererRef.current;
+        // Create the renderer only once
+        if (!rendererRef.current) {
+            rendererRef.current = new THREE.WebGLRenderer();
+        }
+
         const renderer = rendererRef.current;
         renderer.setSize(
             mountRef.current?.clientWidth || window.innerWidth,
@@ -26,16 +28,19 @@ export default function AudioVisualizer({ audioSrc }: { audioSrc: string }) {
         camera.position.z = 30;
 
         return () => {
-            if (audioElRefObserver) {
-                audioElRefObserver.pause();
-                audioElRefObserver.src = "";
-            }
             if (animationIdRef.current) {
                 cancelAnimationFrame(animationIdRef.current);
             }
-            if (rendererRefObserver) {
-                rendererRefObserver.dispose();
-                // rendererRefObserver.forceContextLoss();
+
+            if (rendererRef.current) {
+                rendererRef.current.dispose();
+                // rendererRef.current.forceContextLoss();
+                // rendererRef.current = null;
+            }
+
+            if (audioContextRef.current) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
             }
         };
     }, []);
@@ -96,7 +101,7 @@ export default function AudioVisualizer({ audioSrc }: { audioSrc: string }) {
                 bar.position.y = bar.scale.y / 2 - 0.5;
             }
 
-            rendererRef.current.render(scene, cameraRef.current);
+            rendererRef.current?.render(scene, cameraRef.current);
         };
 
         animate();
