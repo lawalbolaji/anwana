@@ -41,6 +41,10 @@ async function startRecorder(
                 const sound = new Audio(URL.createObjectURL(audioBlob));
                 sound.play();
 
+                /* upload audio to backend */
+                const jsonResponse = uploadAudio("/api/gpt", audioBlob, "audio/webm");
+                jsonResponse.then((data) => console.log(data));
+
                 if (recorderRef.current && recorderRef.current.state !== "inactive") {
                     recorderRef.current = null;
                 }
@@ -60,7 +64,7 @@ function stopRecorder(recorderRef: MutableRefObject<MediaRecorder | null>, strea
 
 async function uploadAudio(url: string, audioBlob: Blob, fileType: string) {
     const formData = new FormData();
-    formData.append("media", audioBlob, "user_file");
+    formData.append("audio_blob", audioBlob, "file");
     formData.append("type", fileType || "mp3");
 
     const response = await fetch(url, {
