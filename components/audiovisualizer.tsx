@@ -157,7 +157,11 @@ export default function useAudioVisualizer() {
 
         removeCircle(circleRef, sceneRef);
 
-        audioElement.play();
+        try {
+            audioElement.play();
+        } catch (error) {
+            console.log(error);
+        }
         const audioSource = audioContext.createMediaElementSource(audioElement);
         audioSource.connect(analyser);
         analyser.connect(audioContext.destination);

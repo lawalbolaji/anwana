@@ -96,7 +96,7 @@ export function VoiceRecorder() {
         const mouseMoveListener = () => {
             timeoutRef = setTimeout(() => {
                 startVisualizer("introduction.mp3");
-            }, 500);
+            }, 1_000);
 
             window.removeEventListener("mousemove", mouseMoveListener);
         };
