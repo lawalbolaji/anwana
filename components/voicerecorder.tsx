@@ -1,25 +1,21 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { MutableRefObject, useEffect, useRef, useState } from "react";
+import { Dispatch, MutableRefObject, SetStateAction, useEffect, useRef, useState } from "react";
 import RecordingIcon from "./icons/recordingicon";
 import StopIcon from "./icons/stopicon";
 import MicIcon from "./icons/micicon";
 import { useStopWatch } from "./hooks/usestopwatch";
 import { formatTime } from "../lib/utils";
-
-/* 
-    nextjs was throwing a document not found reference error and returning a 500 for the root page 
-    but dynamically importing three.js (instead of static) fixed it... Will figure out why later 
-*/
-const AudioVisualizer = dynamic(() => import("@/components/audiovisualizer"), { ssr: false });
+import useAudioVisualizer from "@/components/audiovisualizer";
 
 type recorderState = "recording" | "stopped";
 
 async function startRecorder(
     recorderRef: MutableRefObject<MediaRecorder | null>,
     audioChunkRef: MutableRefObject<BlobPart[]>,
-    audioStreamRef: MutableRefObject<MediaStream | undefined>
+    audioStreamRef: MutableRefObject<MediaStream | undefined>,
+    playResponse: (objUrl: string) => void,
+    setLoadGptResponse: Dispatch<SetStateAction<"idle" | "success" | "loading" | "error">>
 ) {
     if (navigator.mediaDevices) {
         try {
@@ -38,12 +34,16 @@ async function startRecorder(
                 const audioBlob = new Blob(audioChunkRef.current, { type: "audio/webm" });
 
                 /* DEBUG: play back audio to confirm it was captured successfully */
-                const sound = new Audio(URL.createObjectURL(audioBlob));
-                sound.play();
+                // const sound = new Audio(URL.createObjectURL(audioBlob));
+                // sound.play();
 
                 /* upload audio to backend */
-                const jsonResponse = uploadAudio("/api/gpt", audioBlob, "audio/webm");
-                jsonResponse.then((data) => console.log(data));
+                // start spinner
+                setLoadGptResponse("loading");
+                getGptResponseToQuery("/api/gpt", audioBlob, "audio/webm", (data: Blob) => {
+                    setLoadGptResponse("success");
+                    playResponse(URL.createObjectURL(data));
+                });
 
                 if (recorderRef.current && recorderRef.current.state !== "inactive") {
                     recorderRef.current = null;
@@ -62,7 +62,7 @@ function stopRecorder(recorderRef: MutableRefObject<MediaRecorder | null>, strea
     stream?.getTracks().forEach((track) => track.stop());
 }
 
-async function uploadAudio(url: string, audioBlob: Blob, fileType: string) {
+async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: string, cb: (data: Blob) => void) {
     const formData = new FormData();
     formData.append("audio_blob", audioBlob, "file");
     formData.append("type", fileType || "mp3");
@@ -73,7 +73,8 @@ async function uploadAudio(url: string, audioBlob: Blob, fileType: string) {
         body: formData,
     });
 
-    return response.json();
+    const audioResponseBlob = await response.blob();
+    cb(audioResponseBlob);
 }
 
 export function VoiceRecorder() {
@@ -81,6 +82,8 @@ export function VoiceRecorder() {
     const recorderRef = useRef<MediaRecorder | null>(null);
     const audioStreamRef = useRef<MediaStream | undefined>();
     const audioChunkRef = useRef<Array<BlobPart>>([]);
+    const { startVisualizer, mountRef } = useAudioVisualizer();
+    const [loadGptResponse, setLoadGptResponse] = useState<"idle" | "success" | "loading" | "error">("idle");
 
     useEffect(() => {
         recorderRef.current = null;
@@ -88,25 +91,51 @@ export function VoiceRecorder() {
         audioStreamRef.current = undefined;
     }, []);
 
+    useEffect(() => {
+        let timeoutRef: NodeJS.Timeout;
+        const mouseMoveListener = () => {
+            timeoutRef = setTimeout(() => {
+                startVisualizer("introduction.mp3");
+            }, 500);
+
+            window.removeEventListener("mousemove", mouseMoveListener);
+        };
+
+        if (window) window.addEventListener("mousemove", mouseMoveListener, { once: true });
+
+        return () => {
+            if (window) window.removeEventListener("mousemove", mouseMoveListener);
+            if (timeoutRef) clearTimeout(timeoutRef);
+        };
+    }, [startVisualizer]);
+
     const { timeInSeconds, startTimer, clearTimer } = useStopWatch();
 
     return (
         <div className="flex flex-col items-center justify-center h-screen w-[80%] mx-auto">
             <div className="py-8">
-                <h1 className="font-bold text-2xl">Hello, welcome to assistant!</h1>
+                <h1 className="font-bold text-4xl text-center">Hello, Ẹ káàbọ̀, Ndewo, barka da zuwa!</h1>
             </div>
 
             <div className="overflow-hidden h-[600px] w-[80%] relative">
-                <AudioVisualizer audioSrc="introduction.mp3" />
+                <div className="h-full w-full" ref={mountRef} />
             </div>
 
             <div className="flex flex-col flex-grow items-center justify-center w-full my-4">
-                {recorderState === "stopped" ? (
+                {loadGptResponse === "loading" ? (
+                    <Spinner />
+                ) : recorderState === "stopped" ? (
                     <div className="h-full w-full py-4 flex flex-col items-center justify-center">
                         <button
                             onClick={async () => {
                                 try {
-                                    await startRecorder(recorderRef, audioChunkRef, audioStreamRef);
+                                    await startRecorder(
+                                        recorderRef,
+                                        audioChunkRef,
+                                        audioStreamRef,
+                                        startVisualizer,
+                                        setLoadGptResponse
+                                    );
                                     setRecorderState("recording");
                                     startTimer();
                                 } catch (error: unknown) {
@@ -150,6 +179,14 @@ export function VoiceRecorder() {
                     </div>
                 )}
             </div>
+        </div>
+    );
+}
+
+function Spinner() {
+    return (
+        <div className="flex items-center justify-center h-full">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-gray-50" />
         </div>
     );
 }
