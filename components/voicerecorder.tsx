@@ -93,18 +93,18 @@ export function VoiceRecorder() {
 
     useEffect(() => {
         let timeoutRef: NodeJS.Timeout;
-        const mouseMoveListener = () => {
+        const clickListener = () => {
             timeoutRef = setTimeout(() => {
                 startVisualizer("introduction.mp3");
-            }, 1_000);
+            }, 500);
 
-            window.removeEventListener("mousemove", mouseMoveListener);
+            window.removeEventListener("click", clickListener);
         };
 
-        if (window) window.addEventListener("mousemove", mouseMoveListener, { once: true });
+        if (window) window.addEventListener("click", clickListener, { once: true });
 
         return () => {
-            if (window) window.removeEventListener("mousemove", mouseMoveListener);
+            if (window) window.removeEventListener("click", clickListener);
             if (timeoutRef) clearTimeout(timeoutRef);
         };
     }, [startVisualizer]);
@@ -114,7 +114,10 @@ export function VoiceRecorder() {
     return (
         <div className="flex flex-col items-center justify-center h-screen w-[80%] mx-auto">
             <div className="py-8">
-                <h1 className="font-bold text-4xl text-center">Hello, Ẹ káàbọ̀, Ndewo, barka da zuwa!</h1>
+                <h1 className="font-bold text-4xl text-center select-none	">Hello, Ẹ káàbọ̀, Ndewo, barka da zuwa!</h1>
+                <p className="font-bold text-xl text-center text-[#f46157] py-4 select-none">
+                    Click anywhere to start!
+                </p>
             </div>
 
             <div className="overflow-hidden h-[600px] w-[80%] relative">
