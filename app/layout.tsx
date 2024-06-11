@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { Caveat, Poppins, Ubuntu } from "next/font/google";
+import { Caveat, Poppins, Roboto, Ubuntu } from "next/font/google";
 import "./globals.css";
 
-const caveat = Ubuntu({ subsets: ["greek"], weight: ["300", "400", "500", "700"] });
+const caveat = Roboto({ subsets: ["greek"], weight: ["300", "400", "500", "700"] });
 
 export const metadata: Metadata = {
     title: "NLP Testbed",
