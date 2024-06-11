@@ -35,7 +35,7 @@ export async function POST(req: Request) {
                     {
                         role: "system",
                         content:
-                            "You are a helpful assistant that helps me with general knowledge questions about Nigeria. You want to prioritize the shortest answers but in any case, you answer must not exceed 20 words. Ensure to respond with Nigerian english!",
+                            "You are a helpful assistant that helps with general knowledge questions about Nigeria. You want to prioritize the shortest answers but in any case, you answer must not exceed 30 words. Generate all your responses in Nigerian pidjin english!",
                     },
                     { role: "user", content: transcriptionAsText + "" },
                 ],
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
                 model: "tts-1",
                 voice: "shimmer",
                 input: completions.choices[0].message.content ?? "I didn't catch that, please come again",
+                speed: 0.8,
             });
 
             const blob = await response.arrayBuffer();
