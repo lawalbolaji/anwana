@@ -40,7 +40,13 @@ export default function useAudioVisualizer() {
     const animationIdRef = useRef<number | null>(null);
 
     useEffect(() => {
-        const camera = new THREE.PerspectiveCamera(75, window ? window.innerWidth / window.innerHeight : 1, 0.1, 1000);
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            (mountRef.current?.clientWidth || window.innerWidth) /
+                (mountRef.current?.clientHeight || window.innerHeight),
+            0.1,
+            1000
+        );
         cameraRef.current = camera;
         camera.position.z = 30;
 
@@ -94,7 +100,7 @@ export default function useAudioVisualizer() {
         }
 
         // Create capsules for the visualizer
-        const noOfCapsules = 4;
+        const noOfCapsules = window.innerWidth > 480 ? 4 : 3;
         const capsules: Array<THREE.Mesh> = [];
         const capsuleRadius = 4;
         const capsuleLength = 3;
