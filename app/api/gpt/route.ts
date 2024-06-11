@@ -12,15 +12,20 @@ export async function POST(req: Request) {
     try {
         const formData = await req.formData();
         const audio = formData.get("audio_blob");
+        const mimeType = formData.get("type");
+        const fileExt = mimeType === "audio/webm" ? "webm" : mimeType === "audio/ogg" ? "ogg" : "mp4";
+        const filename = `request.${fileExt}`;
+
         if (audio instanceof Blob) {
             const stream = audio.stream();
 
             /* This utility from openAI allows us to convert the stream to a compatible file format without having to save the audio to disk and creating a readstream with fs.createReadStream() */
-            const byteStreamAsFileLike = await toFile(Readable.fromWeb(stream as ReadableStream<any>), "audio.webm");
+            const byteStreamAsFileLike = await toFile(Readable.fromWeb(stream as ReadableStream<any>), filename);
             const transcriptionAsText = await openai.audio.transcriptions.create({
                 file: byteStreamAsFileLike,
                 model: "whisper-1",
                 response_format: "text",
+                language: "en",
             });
 
             // get completions
