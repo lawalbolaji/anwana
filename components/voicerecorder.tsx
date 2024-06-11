@@ -7,6 +7,7 @@ import MicIcon from "./icons/micicon";
 import { useStopWatch } from "./hooks/usestopwatch";
 import { formatTime } from "../lib/utils";
 import useAudioVisualizer from "@/components/audiovisualizer";
+import Image from "next/image";
 
 type recorderState = "recording" | "stopped";
 type supportedMimeTypes = "audio/webm" | "audio/ogg" | "audio/mp4";
@@ -136,13 +137,15 @@ export function VoiceRecorder() {
 
     return (
         <div className="flex flex-col items-center justify-center h-[calc(100dvh)] w-[80%] mx-auto">
+            <div className="my-8 flex align-center justify-center">
+                <Image src="/icon.png" alt="main-logo" width={"50"} height={50}/>
+            </div>
             <div className="pt-4 md:py-8">
-                {/* <h1 className="text-4xl text-center select-none	">Hello, Ẹ káàbọ̀, Ndewo, barka da zuwa!</h1> */}
-                <h1 className="font-bold text-4xl text-center select-none">Hi there, click anywhere to start!</h1>
-                {/* <p className="text-md text-center text-[#f8f5df] py-4 select-none">Click anywhere to start!</p> */}
+                <h1 className="font-bold text-7xl text-center select-none">Hello!</h1>
+                <p className="text-md text-center text-[#f8f5df] select-none">Click anywhere to start!</p>
             </div>
 
-            <div className="overflow-hidden h-[600px] w-[80%] relative">
+            <div className="overflow-hidden h-[300px] w-[70%] relative">
                 <div className="h-full w-full" ref={mountRef} />
             </div>
 
@@ -175,7 +178,7 @@ export function VoiceRecorder() {
 
                         <div className="mt-8">
                             <div className="h-8 w-[170px] flex items-center justify-center font-bold text-sm">
-                                Click to record
+                                Tap the button to speak!
                             </div>
                         </div>
                     </div>
