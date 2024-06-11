@@ -137,10 +137,9 @@ export function VoiceRecorder() {
     return (
         <div className="flex flex-col items-center justify-center h-screen w-[80%] mx-auto">
             <div className="py-8">
-                <h1 className="font-bold text-4xl text-center select-none	">Hello, Ẹ káàbọ̀, Ndewo, barka da zuwa!</h1>
-                <p className="font-bold text-xl text-center text-[#f46157] py-4 select-none">
-                    Click anywhere to start!
-                </p>
+                {/* <h1 className="text-4xl text-center select-none	">Hello, Ẹ káàbọ̀, Ndewo, barka da zuwa!</h1> */}
+                <h1 className="font-bold text-4xl text-center select-none	">Hi there, click anywhere to start!</h1>
+                {/* <p className="text-md text-center text-[#f8f5df] py-4 select-none">Click anywhere to start!</p> */}
             </div>
 
             <div className="overflow-hidden h-[600px] w-[80%] relative">
@@ -211,9 +210,14 @@ export function VoiceRecorder() {
 }
 
 function Spinner() {
+    // h-full w-full py-4 flex flex-col items-center justify-center
     return (
-        <div className="flex items-center justify-center h-full">
+        <div className="w-full py-4 flex flex-col items-center justify-center h-full">
             <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-gray-50" />
+
+            <div className="mt-8">
+                <div className="h-8 w-[170px] flex items-center justify-center font-bold text-sm opacity-0"></div>
+            </div>
         </div>
     );
 }

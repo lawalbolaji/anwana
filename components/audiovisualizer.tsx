@@ -3,10 +3,13 @@
 import { useRef, useEffect, MutableRefObject, useCallback } from "react";
 import * as THREE from "three";
 import TWEEN, { Tween } from "@tweenjs/tween.js";
+import { throttle } from "../lib/utils";
+
+const WINDOW_RESIZE_THROTTLE_DELAY = 200; // ms
 
 const renderCircle = (circleRef: MutableRefObject<THREE.Mesh | null>, sceneRef: MutableRefObject<THREE.Scene>) => {
     const geometry = new THREE.CircleGeometry(10, 128);
-    const material = new THREE.MeshBasicMaterial({ color: 0xe2dfd0 });
+    const material = new THREE.MeshBasicMaterial({ color: 0xf8f5df });
     const circle = new THREE.Mesh(geometry, material);
 
     circleRef.current = circle;
@@ -51,22 +54,24 @@ export default function useAudioVisualizer() {
             mountRef.current?.clientWidth || window.innerWidth,
             mountRef.current?.clientHeight || window.innerHeight
         );
-        renderer.setClearColor(0x35374b);
+        renderer.setClearColor(0x83aff0);
         mountRef.current?.appendChild(renderer.domElement);
 
-        const resizeListener = () => {
-            if (cameraRef.current && rendererRef.current) {
-                const aspectRatio = window.innerWidth / window.innerHeight;
-                cameraRef.current.aspect = aspectRatio;
-                cameraRef.current.updateProjectionMatrix();
-                rendererRef.current.setSize(
-                    mountRef.current?.clientWidth || window.innerWidth,
-                    mountRef.current?.clientHeight || window.innerHeight
-                );
-            }
-        };
-        if (window) window.addEventListener("resize", resizeListener);
+        const resizeListener = throttle(() => {
+            const aspectRatio = window.innerWidth / window.innerHeight;
+            camera.aspect = aspectRatio;
+            camera.updateProjectionMatrix();
+            renderer.setSize(
+                mountRef.current?.clientWidth || window.innerWidth,
+                mountRef.current?.clientHeight || window.innerHeight
+            );
 
+            mountRef.current?.appendChild(renderer.domElement);
+            renderCircle(circleRef, sceneRef);
+            renderer.render(sceneRef.current, camera);
+        }, WINDOW_RESIZE_THROTTLE_DELAY);
+
+        window.addEventListener("resize", resizeListener);
         renderCircle(circleRef, sceneRef);
         renderer.render(sceneRef.current, cameraRef.current);
 
@@ -77,7 +82,7 @@ export default function useAudioVisualizer() {
                 audioContextRef.current.close();
                 audioContextRef.current = null;
             }
-            if (window) window.removeEventListener("resize", resizeListener);
+            window.removeEventListener("resize", resizeListener);
         };
     }, []);
 
@@ -89,15 +94,15 @@ export default function useAudioVisualizer() {
         }
 
         // Create capsules for the visualizer
-        const noOfCapsules = 5;
+        const noOfCapsules = 4;
         const capsules: Array<THREE.Mesh> = [];
         const capsuleRadius = 4;
-        const capsuleLength = 5;
-        const capsuleSegments = 20;
+        const capsuleLength = 3;
+        const capsuleSegments = 10;
 
         for (let i = 0; i < noOfCapsules; i++) {
             const geometry = new THREE.CapsuleGeometry(capsuleRadius, capsuleLength, capsuleSegments);
-            const material = new THREE.MeshBasicMaterial({ color: 0xe2dfd0 });
+            const material = new THREE.MeshBasicMaterial({ color: 0xf8f5df });
             const bar = new THREE.Mesh(geometry, material);
 
             bar.position.x = (i - (noOfCapsules - 1) / 2) * (capsuleRadius * 2.2);
@@ -113,7 +118,7 @@ export default function useAudioVisualizer() {
         audioContextRef.current = audioContext;
 
         const analyser = audioContext.createAnalyser();
-        analyser.fftSize = 64;
+        analyser.fftSize = 32;
         const bufferLength = analyser.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
         analyserRef.current = analyser;
@@ -138,7 +143,7 @@ export default function useAudioVisualizer() {
                 // Second tween: Scale the capsule down to 0 after it reaches the center
                 const scaleTween = new TWEEN.Tween(capsule.scale)
                     .to({ x: 0, y: 0, z: 0 }, 500)
-                    .easing(TWEEN.Easing.Cubic.Out)
+                    .easing(TWEEN.Easing.Elastic.Out)
                     .delay(1000) // Delay the scale tween by 1 second
                     .onComplete(() => {
                         sceneRef.current.remove(capsule);

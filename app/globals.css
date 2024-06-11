@@ -7,9 +7,9 @@
     --background-start-rgb: 214, 219, 220;
     --background-end-rgb: 255, 255, 255; */
 
-    --foreground-rgb: 226, 223, 208;
-    --background-start-rgb: 53, 55, 75;
-    --background-end-rgb: 53, 55, 75;
+    --foreground-rgb: 248, 245, 223;
+    --background-start-rgb: 131, 175, 240;
+    --background-end-rgb: 131, 175, 240;
 }
 
 /* @media (prefers-color-scheme: dark) {

@@ -11,3 +11,16 @@ export const formatTime = (timeInSeconds: number) => {
     const seconds = String(timeInSeconds % 60).padStart(2, "0");
     return `${minutes}:${seconds}`;
 };
+
+export function throttle(mainFunction: (...args: Array<any>) => void, delay: number) {
+    let timerFlag: NodeJS.Timeout | null = null;
+
+    return (...args: Array<any>) => {
+        if (timerFlag === null) {
+            mainFunction(...args);
+            timerFlag = setTimeout(() => {
+                timerFlag = null;
+            }, delay);
+        }
+    };
+}
