@@ -100,7 +100,7 @@ export default function useAudioVisualizer() {
         }
 
         // Create capsules for the visualizer
-        const noOfCapsules = window.innerWidth > 480 ? 4 : 3;
+        const noOfCapsules = window.innerWidth > 480 ? 4 : 2;
         const capsules: Array<THREE.Mesh> = [];
         const capsuleRadius = 4;
         const capsuleLength = 3;
