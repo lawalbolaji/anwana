@@ -35,7 +35,7 @@ export async function POST(req: Request) {
                     {
                         role: "system",
                         content:
-                            "You are a helpful assistant that helps me general knowledge questions. You want to prioritize the shortest answers but in any case, you answer must not exceed 20 words",
+                            "You are a helpful assistant that helps me with general knowledge questions about Nigeria. You want to prioritize the shortest answers but in any case, you answer must not exceed 20 words. Ensure to respond with Nigerian english!",
                     },
                     { role: "user", content: transcriptionAsText + "" },
                 ],
