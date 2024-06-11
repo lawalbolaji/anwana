@@ -41,7 +41,7 @@ export default function useAudioVisualizer() {
 
     useEffect(() => {
         const camera = new THREE.PerspectiveCamera(
-            75,
+            45,
             (mountRef.current?.clientWidth || window.innerWidth) /
                 (mountRef.current?.clientHeight || window.innerHeight),
             0.1,
