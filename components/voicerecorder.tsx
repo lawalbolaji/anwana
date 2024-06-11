@@ -135,10 +135,10 @@ export function VoiceRecorder() {
     const { timeInSeconds, startTimer, clearTimer } = useStopWatch();
 
     return (
-        <div className="flex flex-col items-center justify-center max-h-screen w-[80%] mx-auto">
-            <div className="py-8">
+        <div className="flex flex-col items-center justify-center h-[calc(100dvh)] w-[80%] mx-auto">
+            <div className="pt-4 md:py-8">
                 {/* <h1 className="text-4xl text-center select-none	">Hello, Ẹ káàbọ̀, Ndewo, barka da zuwa!</h1> */}
-                <h1 className="font-bold text-4xl text-center select-none	">Hi there, click anywhere to start!</h1>
+                <h1 className="font-bold text-4xl text-center select-none">Hi there, click anywhere to start!</h1>
                 {/* <p className="text-md text-center text-[#f8f5df] py-4 select-none">Click anywhere to start!</p> */}
             </div>
 
