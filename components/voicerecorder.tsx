@@ -27,7 +27,7 @@ async function startRecorder(
     recorderRef: MutableRefObject<MediaRecorder | null>,
     audioChunkRef: MutableRefObject<BlobPart[]>,
     audioStreamRef: MutableRefObject<MediaStream | undefined>,
-    playResponse: (objUrl: string | Blob) => void,
+    playResponse: (objUrl: string) => void,
     setLoadGptResponse: Dispatch<SetStateAction<"idle" | "success" | "loading" | "error">>,
     supportedMimeType: MutableRefObject<supportedMimeTypes>
 ) {
@@ -60,16 +60,17 @@ async function startRecorder(
                 const audioBlob = new Blob(audioChunkRef.current, { type: supportedMimeType.current });
 
                 /* upload audio to backend */
-                // start spinner
                 setLoadGptResponse("loading");
-                getGptResponseToQuery("/api/gpt", audioBlob, supportedMimeType.current, (audio: Blob) => {
+                const onGptResponseReceived = (audio: Blob) => {
                     setLoadGptResponse("success");
-                    // playResponse(URL.createObjectURL(audio)); // deprecated for safari mobile
-                    playResponse(audio);
-                }).catch((err) => {
-                    console.error(err);
-                    logRemoteError(err);
-                });
+                    playResponse(URL.createObjectURL(audio));
+                };
+                getGptResponseToQuery("/api/gpt", audioBlob, supportedMimeType.current, onGptResponseReceived).catch(
+                    (err) => {
+                        console.error(err);
+                        logRemoteError(err);
+                    }
+                );
 
                 if (recorderRef.current && recorderRef.current.state !== "inactive") {
                     recorderRef.current = null;
@@ -114,16 +115,9 @@ type audioPlayerState = "stopped" | "playing";
 function useAudioConfig(isMobileSafari?: boolean) {
     const [playerState, setPlayerState] = useState<audioPlayerState>("stopped");
     const playAudio = useCallback(
-        (audio: string | Blob, onPlayerStop?: (args?: any) => any, args?: any) => {
+        (audio: string, onPlayerStop?: (args?: any) => any, args?: any) => {
             try {
-                let audioElement;
-
-                if (typeof audio === "string") {
-                    audioElement = new Audio(audio);
-                } else {
-                    audioElement = new Audio();
-                    audioElement.srcObject = audio;
-                }
+                const audioElement = new Audio(audio);
 
                 /* weird hack for safari mobile - https://github.com/twilio/twilio-video.js/issues/922 */
                 if (isMobileSafari) audioElement.pause();
