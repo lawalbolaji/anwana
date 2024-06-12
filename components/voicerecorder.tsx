@@ -107,6 +107,8 @@ async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: str
             body: formData,
         });
 
+        if (!response.ok) throw new Error(response.statusText);
+
         const audioResponseBlob = await response.blob();
         cb(audioResponseBlob);
     } catch (error) {
@@ -128,6 +130,10 @@ function useAudioConfig(isMobileSafari?: boolean) {
                 if (isMobileSafari) audioElement.pause();
 
                 audioElement.play();
+
+                /* need to reclaim my sanity with the nonsense safari audio is pulling */
+                if (audioElement.paused) logRemoteError({ message: "audio is not playing" });
+
                 setPlayerState("playing");
                 audioElement.onended = () => {
                     setPlayerState("stopped");
