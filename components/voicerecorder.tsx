@@ -1,13 +1,11 @@
 "use client";
 
-import { Dispatch, MutableRefObject, SetStateAction, useEffect, useRef, useState } from "react";
-import RecordingIcon from "./icons/recordingicon";
-import StopIcon from "./icons/stopicon";
+/* prettier-ignore */
+import { Dispatch, HTMLAttributes, MouseEventHandler, MutableRefObject, SVGProps, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import MicIcon from "./icons/micicon";
 import { useStopWatch } from "./hooks/usestopwatch";
 import { formatTime } from "../lib/utils";
-import useAudioVisualizer from "@/components/audiovisualizer";
-import Image from "next/image";
+import { RECORDING_SLICE_DURATION } from "../lib/constants";
 
 type recorderState = "recording" | "stopped";
 type supportedMimeTypes = "audio/webm" | "audio/ogg" | "audio/mp4";
@@ -72,7 +70,7 @@ async function startRecorder(
                 
                 Other references to same issue: https://community.openai.com/t/whisper-api-completely-wrong-for-mp4/289256/11
                 */
-            recorder.start(1000);
+            recorder.start(RECORDING_SLICE_DURATION);
         } catch (error: unknown) {
             console.log("an error occurred");
             console.error(error);
@@ -100,14 +98,34 @@ async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: str
     cb(audioResponseBlob);
 }
 
+type audioPlayerState = "stopped" | "playing";
+
+function useAudioConfig() {
+    const [playerState, setPlayerState] = useState<audioPlayerState>("stopped");
+    const playAudio = useCallback((audioUrl: string, done?: (args?: any) => any, args?: any) => {
+        const audioElement = new Audio(audioUrl);
+        audioElement.crossOrigin = "anonymous";
+        audioElement.play();
+        setPlayerState("playing");
+
+        audioElement.onended = () => {
+            setPlayerState("stopped");
+            done && done(args);
+        };
+    }, []);
+
+    return { playAudio, playerState };
+}
+
 export function VoiceRecorder() {
     const [recorderState, setRecorderState] = useState<recorderState>("stopped");
     const recorderRef = useRef<MediaRecorder | null>(null);
     const audioStreamRef = useRef<MediaStream | undefined>();
     const audioChunkRef = useRef<Array<BlobPart>>([]);
-    const { startVisualizer, mountRef } = useAudioVisualizer();
+    const { playAudio, playerState } = useAudioConfig();
     const [loadGptResponse, setLoadGptResponse] = useState<"idle" | "success" | "loading" | "error">("idle");
     const supportedMimeType = useRef<supportedMimeTypes>("audio/webm");
+    const [appReady, setAppReady] = useState(false);
 
     useEffect(() => {
         recorderRef.current = null;
@@ -119,7 +137,7 @@ export function VoiceRecorder() {
         let timeoutRef: NodeJS.Timeout;
         const clickListener = () => {
             timeoutRef = setTimeout(() => {
-                startVisualizer("introduction.mp3");
+                playAudio("introduction.mp3", setAppReady, true);
             }, 500);
 
             window.removeEventListener("click", clickListener);
@@ -131,20 +149,66 @@ export function VoiceRecorder() {
             if (window) window.removeEventListener("click", clickListener);
             if (timeoutRef) clearTimeout(timeoutRef);
         };
-    }, [startVisualizer]);
+    }, [playAudio]);
+
+    async function handleStartRecording() {
+        try {
+            await startRecorder(
+                recorderRef,
+                audioChunkRef,
+                audioStreamRef,
+                playAudio,
+                setLoadGptResponse,
+                supportedMimeType
+            );
+            setRecorderState("recording");
+            startTimer();
+        } catch (error: unknown) {
+            console.error(error);
+        }
+    }
+
+    async function handleStopRecording() {
+        try {
+            stopRecorder(recorderRef, audioStreamRef.current);
+            setRecorderState("stopped");
+            clearTimer();
+        } catch (error: unknown) {
+            console.error(error);
+        }
+    }
 
     const { timeInSeconds, startTimer, clearTimer } = useStopWatch();
 
     return (
         <div className="flex h-[calc(100dvh)] justify-center items-center w-full bg-gradient-to-br from-15% via-[#DBE7FC] via-40% to-[#1D2951] to-90%">
-            <div className="flex flex-col items-center justify-center w-[80%] h-[650px] mx-auto my-auto">
+            <div className="flex flex-col items-center justify-center w-[80%] h-[500px] mx-auto my-auto">
                 <div className="pt-4 md:pt-8">
-                    <h1 className="font-bold text-7xl text-center select-none tracking-widest">Hello!</h1>
+                    <h1 className="font-bold text-5xl text-center select-none tracking-widest line-1 anim-typewriter">
+                        Hello!
+                    </h1>
                     <p className="text-md text-center select-none">I&quot;m Anwana, click anywhere to start!</p>
                 </div>
 
-                <div className="overflow-hidden h-[300px] w-[70%] relative">
-                    <div className="h-full w-full" ref={mountRef} />
+                <div className="w-[70%] flex flex-grow items-center justify-center relative">
+                    <div id="wrapper" className="border p-8 flex items-center justify-center rounded-full shadow-III">
+                        <div
+                            id="inner-circle"
+                            className="border p-8 flex items-center justify-center rounded-full shadow-II bg-gradient-to-br from-[#d099d7] via-[#575dea] to-[#66bcfe]"
+                        >
+                            <div
+                                id="bubble"
+                                className="p-4 flex items-center justify-center font-bold text-sm rounded-full shadow-I text-white bg-gradient-to-tr from-[#d099d7] via-[#575dea] to-[#66bcfe]"
+                            >
+                                {playerState === "playing" ? (
+                                    <div className="absolute w-32 h-32 rounded-full bg-[#e5dddb] opacity-50 animate-ping" />
+                                ) : (
+                                    <></>
+                                )}
+                                <MicIcon className="h-18 w-18" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="flex flex-col items-center justify-center w-full">
@@ -152,57 +216,23 @@ export function VoiceRecorder() {
                         <Spinner />
                     ) : recorderState === "stopped" ? (
                         <div className="h-full w-full py-4 flex flex-col items-center justify-center">
-                            <button
-                                onClick={async () => {
-                                    try {
-                                        await startRecorder(
-                                            recorderRef,
-                                            audioChunkRef,
-                                            audioStreamRef,
-                                            startVisualizer,
-                                            setLoadGptResponse,
-                                            supportedMimeType
-                                        );
-                                        setRecorderState("recording");
-                                        startTimer();
-                                    } catch (error: unknown) {
-                                        console.error(error);
-                                    }
-                                }}
-                                className="relative flex items-center justify-center w-16 h-16 rounded-full bg-[#FF5722] text-white font-bold text-4xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#FF5722] focus:ring-opacity-50"
-                            >
-                                <MicIcon className="h-6 w-6" />
-                            </button>
-
-                            <div className="mt-8">
-                                <div className="h-8 w-[170px] flex items-center justify-center font-bold text-sm">
-                                    Tap the button to speak!
-                                </div>
-                            </div>
+                            <RecordingActionButton
+                                onClick={handleStartRecording}
+                                label={"Start recording"}
+                                icon={<RecorderIcon className="h-8 w-8" />}
+                                className="start-recording"
+                                ready={appReady}
+                            />
                         </div>
                     ) : (
                         <div className="h-full w-full py-4 flex flex-col items-center justify-center">
-                            <button
-                                onClick={async () => {
-                                    try {
-                                        stopRecorder(recorderRef, audioStreamRef.current);
-                                        setRecorderState("stopped");
-                                        clearTimer();
-                                    } catch (error: unknown) {
-                                        console.error(error);
-                                    }
-                                }}
-                                className="relative flex items-center justify-center w-16 h-16 rounded-full bg-[#e7dbd8] text-[#e7dbd8] font-bold text-4xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
-                            >
-                                <div className="absolute w-20 h-20 rounded-full bg-[#e5dddb] opacity-50 animate-ping" />
-                                <StopIcon className="h-6 w-6" />
-                            </button>
-
-                            <div className="mt-8">
-                                <div className="h-8 w-[170px] flex items-center justify-center font-bold text-sm opacity-50 bg-[#444343] rounded-md">
-                                    <RecordingIcon className="h-4 w-4" /> &nbsp; Recording {formatTime(timeInSeconds)}
-                                </div>
-                            </div>
+                            <RecordingActionButton
+                                onClick={handleStopRecording}
+                                label={"Stop recording"}
+                                icon={<>{formatTime(timeInSeconds)}</>}
+                                className="stop-recording"
+                                ready={appReady}
+                            />
                         </div>
                     )}
                 </div>
@@ -211,15 +241,50 @@ export function VoiceRecorder() {
     );
 }
 
-function Spinner() {
-    // h-full w-full py-4 flex flex-col items-center justify-center
-    return (
-        <div className="w-full py-4 flex flex-col items-center justify-center h-full">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900 dark:border-gray-600 dark:border-t-gray-50" />
+type recAxnButtonProps = {
+    onClick: MouseEventHandler<HTMLButtonElement>;
+    icon: JSX.Element;
+    label: string;
+    className?: HTMLAttributes<HTMLDivElement>["className"];
+    ready: boolean;
+};
 
-            <div className="mt-8">
-                <div className="h-8 w-[170px] flex items-center justify-center font-bold text-sm opacity-0"></div>
-            </div>
+function RecordingActionButton(props: recAxnButtonProps) {
+    return (
+        <button
+            onClick={props.onClick}
+            className={`py-4 px-12 rounded-[3rem] shadow-xl bg-gradient-to-br from-[#d099d7] via-[#575dea] to-[#66bcfe] fill-white transition ease-in-out hover:-translate-y-1 hover:scale-110 tap:-translate-y-1 tap:scale-110 ${props.className}`}
+            aria-disabled={!props.ready}
+            disabled={!props.ready}
+        >
+            <span className="flex flex-row items-center justify-center w-full h-full font-bold">
+                <span className="flex leading-8">{props.icon}</span>
+                <span className="px-2">{props.label}</span>
+            </span>
+        </button>
+    );
+}
+
+function Spinner() {
+    return (
+        <div className="h-full w-full py-4 flex flex-col items-center justify-center">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900" />
         </div>
+    );
+}
+
+function RecorderIcon(props: JSX.IntrinsicAttributes & SVGProps<SVGSVGElement>) {
+    return (
+        <svg
+            {...props}
+            xmlns="http://www.w3.org/2000/svg"
+            version="1.1"
+            x="0px"
+            y="0px"
+            viewBox="0 0 32 32"
+            enableBackground="new 0 0 32 32"
+        >
+            <path d="M24,10c-3.3085938,0-6,2.6914063-6,6c0,1.5375366,0.5861816,2.9371948,1.5404663,4h-7.0809326  C13.4138184,18.9371948,14,17.5375366,14,16c0-3.3085938-2.6914063-6-6-6s-6,2.6914063-6,6s2.6914063,6,6,6h16  c3.3085938,0,6-2.6914063,6-6S27.3085938,10,24,10z M4,16c0-2.2055664,1.7939453-4,4-4s4,1.7944336,4,4s-1.7939453,4-4,4  S4,18.2055664,4,16z M24,20c-2.2060547,0-4-1.7944336-4-4s1.7939453-4,4-4s4,1.7944336,4,4S26.2060547,20,24,20z" />
+        </svg>
     );
 }

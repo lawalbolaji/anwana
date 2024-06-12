@@ -7,9 +7,11 @@
     --background-start-rgb: 214, 219, 220;
     --background-end-rgb: 255, 255, 255; */
 
-    --foreground-rgb: 236, 217, 186;
-    --background-start-rgb: 131, 175, 240;
-    --background-end-rgb: 131, 175, 240;
+    --foreground-rgb: 255, 255, 255;
+    /* --background-start-rgb: 131, 175, 240;
+    --background-end-rgb: 131, 175, 240; */
+    --background-start-rgb: 208, 153, 215;
+    --background-end-rgb: 102, 188, 254;
 }
 
 /* @media (prefers-color-scheme: dark) {
@@ -28,5 +30,35 @@ body {
 @layer utilities {
     .text-balance {
         text-wrap: balance;
+    }
+}
+
+.line-1 {
+    margin: 0 auto;
+    border-right: 2px solid rgba(255, 255, 255, 0.75);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* Animation */
+.anim-typewriter {
+    animation: typewriter 1s steps(16) 500ms 1 normal both, blinkTextCursor 1s steps(2) infinite normal;
+}
+
+@keyframes typewriter {
+    from {
+        width: 0;
+    }
+    to {
+        width: 3.4em;
+    }
+}
+
+@keyframes blinkTextCursor {
+    from {
+        border-right-color: rgba(255, 255, 255, 0.75);
+    }
+    to {
+        border-right-color: transparent;
     }
 }
