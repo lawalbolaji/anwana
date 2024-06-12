@@ -134,8 +134,10 @@ function useAudioConfig(isMobileSafari?: boolean) {
                 audioElement.play();
 
                 /* need to reclaim my sanity with the nonsense safari audio is pulling */
-                if (audioElement.paused) logRemoteError({ message: "audio is not playing" });
-                else logRemoteError({ message: "audio doesn't seem to be paused" });
+                if (audioElement.paused) {
+                    logRemoteError({ message: "audio is not playing" });
+                    audioElement.play();
+                } else logRemoteError({ message: "audio doesn't seem to be paused" });
 
                 setPlayerState("playing");
                 audioElement.onended = () => {
