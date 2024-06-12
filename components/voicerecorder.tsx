@@ -128,6 +128,11 @@ function useAudioConfig(isMobileSafari?: boolean) {
             try {
                 const audioElement = new Audio(audio);
 
+                audioElement.onerror = (error) => {
+                    /* want to find out what is going on with safari mobile */
+                    logRemoteError(error);
+                };
+
                 /* weird hack for safari mobile - https://github.com/twilio/twilio-video.js/issues/922 */
                 if (isMobileSafari) audioElement.pause();
 
@@ -136,7 +141,6 @@ function useAudioConfig(isMobileSafari?: boolean) {
                 /* need to reclaim my sanity with the nonsense safari audio is pulling */
                 if (audioElement.paused) {
                     logRemoteError({ message: "audio is not playing" });
-                    audioElement.play();
                 } else logRemoteError({ message: "audio doesn't seem to be paused" });
 
                 setPlayerState("playing");
