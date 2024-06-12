@@ -103,15 +103,21 @@ type audioPlayerState = "stopped" | "playing";
 function useAudioConfig() {
     const [playerState, setPlayerState] = useState<audioPlayerState>("stopped");
     const playAudio = useCallback((audioUrl: string, done?: (args?: any) => any, args?: any) => {
-        const audioElement = new Audio(audioUrl);
-        audioElement.crossOrigin = "anonymous";
-        audioElement.play();
-        setPlayerState("playing");
+        try {
+            const audioElement = new Audio(audioUrl);
+            audioElement.play();
+            setPlayerState("playing");
 
-        audioElement.onended = () => {
-            setPlayerState("stopped");
-            done && done(args);
-        };
+            audioElement.onended = () => {
+                setPlayerState("stopped");
+                done && done(args);
+            };
+        } catch (error) {
+            console.log("error playing audio");
+            console.error(error);
+        }
+
+        return () => {};
     }, []);
 
     return { playAudio, playerState };
