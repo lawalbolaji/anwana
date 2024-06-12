@@ -96,18 +96,23 @@ function stopRecorder(recorderRef: MutableRefObject<MediaRecorder | null>, strea
 }
 
 async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: string, cb: (data: Blob) => void) {
-    const formData = new FormData();
-    formData.append("audio_blob", audioBlob, "file");
-    formData.append("type", fileType);
+    try {
+        const formData = new FormData();
+        formData.append("audio_blob", audioBlob, "file");
+        formData.append("type", fileType);
 
-    const response = await fetch(url, {
-        method: "POST",
-        cache: "no-cache",
-        body: formData,
-    });
+        const response = await fetch(url, {
+            method: "POST",
+            cache: "no-cache",
+            body: formData,
+        });
 
-    const audioResponseBlob = await response.blob();
-    cb(audioResponseBlob);
+        const audioResponseBlob = await response.blob();
+        cb(audioResponseBlob);
+    } catch (error) {
+        logRemoteError(error);
+        console.error(error);
+    }
 }
 
 type audioPlayerState = "stopped" | "playing";
