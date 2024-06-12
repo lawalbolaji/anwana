@@ -8,6 +8,10 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
 
+export const config = {
+    maxDuration: 20,
+};
+
 export async function POST(req: Request) {
     try {
         const formData = await req.formData();
@@ -28,6 +32,8 @@ export async function POST(req: Request) {
                 language: "en",
             });
 
+            console.log(`transcription request complete`);
+
             // get completions
             const completions = await openai.chat.completions.create({
                 model: "gpt-4o",
@@ -41,6 +47,8 @@ export async function POST(req: Request) {
                 ],
             });
 
+            console.log(`completion request complete`);
+
             /* get text-to-speech model */
             const response = await openai.audio.speech.create({
                 model: "tts-1",
@@ -48,6 +56,8 @@ export async function POST(req: Request) {
                 input: completions.choices[0].message.content ?? "I didn't catch that, please come again",
                 speed: 0.8,
             });
+
+            console.log(`tts request complete`);
 
             const blob = await response.arrayBuffer();
             const buffer = Buffer.from(blob);
