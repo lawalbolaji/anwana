@@ -4,29 +4,8 @@ import { useRef, useEffect, MutableRefObject, useCallback } from "react";
 import * as THREE from "three";
 import TWEEN, { Tween } from "@tweenjs/tween.js";
 import { throttle } from "../lib/utils";
-
-const WINDOW_RESIZE_THROTTLE_DELAY = 200; // ms
-
-const renderCircle = (circleRef: MutableRefObject<THREE.Mesh | null>, sceneRef: MutableRefObject<THREE.Scene>) => {
-    const geometry = new THREE.CircleGeometry(10, 128);
-    const material = new THREE.MeshBasicMaterial({ color: 0xf8f5df });
-    const circle = new THREE.Mesh(geometry, material);
-
-    circleRef.current = circle;
-
-    circle.scale.set(1, 1, 1);
-    sceneRef.current.add(circle);
-    circle.position.set(0, 0, 0);
-};
-
-const removeCircle = (circleRef: MutableRefObject<THREE.Mesh | null>, sceneRef: MutableRefObject<THREE.Scene>) => {
-    if (circleRef.current) {
-        sceneRef.current.remove(circleRef.current);
-        circleRef.current.geometry.dispose();
-        (circleRef.current.material as THREE.Material).dispose();
-        circleRef.current = null;
-    }
-};
+import { removeAmoeba, renderAmoeba } from "./amoeba";
+import { CAPSULE_COLOR_HEX, WINDOW_RESIZE_THROTTLE_DELAY } from "../lib/constants";
 
 export default function useAudioVisualizer() {
     const mountRef = useRef<HTMLDivElement>(null);
@@ -41,7 +20,7 @@ export default function useAudioVisualizer() {
 
     useEffect(() => {
         const camera = new THREE.PerspectiveCamera(
-            45,
+            50,
             (mountRef.current?.clientWidth || window.innerWidth) /
                 (mountRef.current?.clientHeight || window.innerHeight),
             0.1,
@@ -52,7 +31,12 @@ export default function useAudioVisualizer() {
 
         // Create the renderer only once
         if (!rendererRef.current) {
-            rendererRef.current = new THREE.WebGLRenderer();
+            rendererRef.current = new THREE.WebGLRenderer({
+                powerPreference: "high-performance",
+                antialias: true,
+                premultipliedAlpha: true,
+                logarithmicDepthBuffer: true,
+            });
         }
 
         const renderer = rendererRef.current;
@@ -60,7 +44,7 @@ export default function useAudioVisualizer() {
             mountRef.current?.clientWidth || window.innerWidth,
             mountRef.current?.clientHeight || window.innerHeight
         );
-        renderer.setClearColor(0x83aff0);
+        renderer.setClearColor(0x000000, 0);
         mountRef.current?.appendChild(renderer.domElement);
 
         const resizeListener = throttle(() => {
@@ -73,12 +57,12 @@ export default function useAudioVisualizer() {
             );
 
             mountRef.current?.appendChild(renderer.domElement);
-            renderCircle(circleRef, sceneRef);
+            renderAmoeba(circleRef, sceneRef);
             renderer.render(sceneRef.current, camera);
         }, WINDOW_RESIZE_THROTTLE_DELAY);
 
         window.addEventListener("resize", resizeListener);
-        renderCircle(circleRef, sceneRef);
+        renderAmoeba(circleRef, sceneRef);
         renderer.render(sceneRef.current, cameraRef.current);
 
         return () => {
@@ -108,7 +92,7 @@ export default function useAudioVisualizer() {
 
         for (let i = 0; i < noOfCapsules; i++) {
             const geometry = new THREE.CapsuleGeometry(capsuleRadius, capsuleLength, capsuleSegments);
-            const material = new THREE.MeshBasicMaterial({ color: 0xf8f5df });
+            const material = new THREE.MeshBasicMaterial({ color: CAPSULE_COLOR_HEX });
             const bar = new THREE.Mesh(geometry, material);
 
             bar.position.x = (i - (noOfCapsules - 1) / 2) * (capsuleRadius * 2.2);
@@ -139,8 +123,6 @@ export default function useAudioVisualizer() {
 
             const centerX = 0; // Center X position for the capsules to converge
             capsulesRef.current.forEach((capsule, index) => {
-                // const startPosition = capsule.position.clone();
-
                 // First tween: Move the capsule towards the center
                 const moveTween = new TWEEN.Tween(capsule.position)
                     .to({ x: centerX, y: capsule.position.y, z: capsule.position.z }, 1000)
@@ -163,10 +145,10 @@ export default function useAudioVisualizer() {
 
             tweens
                 .reduce((prev, cur) => prev.chain(cur), tweens[0].start())
-                .onComplete(() => renderCircle(circleRef, sceneRef));
+                .onComplete(() => renderAmoeba(circleRef, sceneRef));
         });
 
-        removeCircle(circleRef, sceneRef);
+        removeAmoeba(circleRef, sceneRef);
 
         audioElement.play();
         const audioSource = audioContext.createMediaElementSource(audioElement);

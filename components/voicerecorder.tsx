@@ -136,79 +136,76 @@ export function VoiceRecorder() {
     const { timeInSeconds, startTimer, clearTimer } = useStopWatch();
 
     return (
-        <div className="flex flex-col items-center justify-center h-[calc(100dvh)] w-[80%] mx-auto">
-            {/* <div className="my-8 flex align-center justify-center">
-                <Image src="/icon.png" alt="main-logo" width={"50"} height={50}/>
-            </div> */}
-            <div className="pt-4 md:py-8">
-                <h1 className="font-bold text-7xl text-center select-none">Hello!</h1>
-                <p className="text-md text-center text-[#f8f5df] select-none">
-                    I&quot;m Anwana, click anywhere to start!
-                </p>
-            </div>
+        <div className="flex h-[calc(100dvh)] justify-center items-center w-full bg-gradient-to-br from-15% via-[#DBE7FC] via-40% to-[#1D2951] to-90%">
+            <div className="flex flex-col items-center justify-center w-[80%] h-[650px] mx-auto my-auto">
+                <div className="pt-4 md:pt-8">
+                    <h1 className="font-bold text-7xl text-center select-none tracking-widest">Hello!</h1>
+                    <p className="text-md text-center select-none">I&quot;m Anwana, click anywhere to start!</p>
+                </div>
 
-            <div className="overflow-hidden h-[300px] w-[70%] relative">
-                <div className="h-full w-full" ref={mountRef} />
-            </div>
+                <div className="overflow-hidden h-[300px] w-[70%] relative">
+                    <div className="h-full w-full" ref={mountRef} />
+                </div>
 
-            <div className="flex flex-col flex-grow items-center justify-center w-full my-4">
-                {loadGptResponse === "loading" ? (
-                    <Spinner />
-                ) : recorderState === "stopped" ? (
-                    <div className="h-full w-full py-4 flex flex-col items-center justify-center">
-                        <button
-                            onClick={async () => {
-                                try {
-                                    await startRecorder(
-                                        recorderRef,
-                                        audioChunkRef,
-                                        audioStreamRef,
-                                        startVisualizer,
-                                        setLoadGptResponse,
-                                        supportedMimeType
-                                    );
-                                    setRecorderState("recording");
-                                    startTimer();
-                                } catch (error: unknown) {
-                                    console.error(error);
-                                }
-                            }}
-                            className="relative flex items-center justify-center w-16 h-16 rounded-full bg-[#FF5722] text-white font-bold text-4xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#FF5722] focus:ring-opacity-50"
-                        >
-                            <MicIcon className="h-6 w-6" />
-                        </button>
+                <div className="flex flex-col items-center justify-center w-full">
+                    {loadGptResponse === "loading" ? (
+                        <Spinner />
+                    ) : recorderState === "stopped" ? (
+                        <div className="h-full w-full py-4 flex flex-col items-center justify-center">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await startRecorder(
+                                            recorderRef,
+                                            audioChunkRef,
+                                            audioStreamRef,
+                                            startVisualizer,
+                                            setLoadGptResponse,
+                                            supportedMimeType
+                                        );
+                                        setRecorderState("recording");
+                                        startTimer();
+                                    } catch (error: unknown) {
+                                        console.error(error);
+                                    }
+                                }}
+                                className="relative flex items-center justify-center w-16 h-16 rounded-full bg-[#FF5722] text-white font-bold text-4xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[#FF5722] focus:ring-opacity-50"
+                            >
+                                <MicIcon className="h-6 w-6" />
+                            </button>
 
-                        <div className="mt-8">
-                            <div className="h-8 w-[170px] flex items-center justify-center font-bold text-sm">
-                                Tap the button to speak!
+                            <div className="mt-8">
+                                <div className="h-8 w-[170px] flex items-center justify-center font-bold text-sm">
+                                    Tap the button to speak!
+                                </div>
                             </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="h-full w-full py-4 flex flex-col items-center justify-center">
-                        <button
-                            onClick={async () => {
-                                try {
-                                    stopRecorder(recorderRef, audioStreamRef.current);
-                                    setRecorderState("stopped");
-                                    clearTimer();
-                                } catch (error: unknown) {
-                                    console.error(error);
-                                }
-                            }}
-                            className="relative flex items-center justify-center w-16 h-16 rounded-full bg-[#e7dbd8] text-[#e7dbd8] font-bold text-4xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
-                        >
-                            <div className="absolute w-20 h-20 rounded-full bg-[#e5dddb] opacity-50 animate-ping" />
-                            <StopIcon className="h-6 w-6" />
-                        </button>
+                    ) : (
+                        <div className="h-full w-full py-4 flex flex-col items-center justify-center">
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        stopRecorder(recorderRef, audioStreamRef.current);
+                                        setRecorderState("stopped");
+                                        clearTimer();
+                                    } catch (error: unknown) {
+                                        console.error(error);
+                                    }
+                                }}
+                                className="relative flex items-center justify-center w-16 h-16 rounded-full bg-[#e7dbd8] text-[#e7dbd8] font-bold text-4xl shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105"
+                            >
+                                <div className="absolute w-20 h-20 rounded-full bg-[#e5dddb] opacity-50 animate-ping" />
+                                <StopIcon className="h-6 w-6" />
+                            </button>
 
-                        <div className="mt-8">
-                            <div className="h-8 w-[170px] flex items-center justify-center font-bold text-sm opacity-50 bg-[#444343] rounded-md">
-                                <RecordingIcon className="h-4 w-4" /> &nbsp; Recording {formatTime(timeInSeconds)}
+                            <div className="mt-8">
+                                <div className="h-8 w-[170px] flex items-center justify-center font-bold text-sm opacity-50 bg-[#444343] rounded-md">
+                                    <RecordingIcon className="h-4 w-4" /> &nbsp; Recording {formatTime(timeInSeconds)}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );
