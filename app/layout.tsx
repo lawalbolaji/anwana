@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Caveat, Poppins, Roboto, Ubuntu } from "next/font/google";
 import "./globals.css";
 
-const caveat = Roboto({ subsets: ["greek"], weight: ["300", "400", "500", "700"] });
+const caveat = Roboto({ subsets: ["greek"], weight: ["100", "300", "400", "500", "700", "900"] });
 
 export const metadata: Metadata = {
     title: "NLP Testbed",
