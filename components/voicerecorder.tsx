@@ -20,6 +20,8 @@ if (typeof window !== "undefined") {
 function logRemoteError(payload: unknown) {
     fetch("/api/errors", {
         body: JSON.stringify(payload),
+        method: "POST",
+        cache: "no-cache",
     });
 }
 
