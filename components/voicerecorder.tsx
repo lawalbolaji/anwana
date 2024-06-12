@@ -1,7 +1,7 @@
 "use client";
 
 /* prettier-ignore */
-import { Dispatch, HTMLAttributes, MouseEventHandler, MutableRefObject, SVGProps, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
+import { Dispatch, HTMLAttributes, MouseEventHandler, MutableRefObject, SVGProps, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MicIcon from "./icons/micicon";
 import { useStopWatch } from "./hooks/usestopwatch";
 import { formatTime } from "../lib/utils";
@@ -10,11 +10,24 @@ import { RECORDING_SLICE_DURATION } from "../lib/constants";
 type recorderState = "recording" | "stopped";
 type supportedMimeTypes = "audio/webm" | "audio/ogg" | "audio/mp4";
 
+if (typeof window !== "undefined") {
+    window.onerror = function (message, url, lineNumber) {
+        logRemoteError({ message, url, lineNumber });
+        return true;
+    };
+}
+
+function logRemoteError(payload: unknown) {
+    fetch("/api/errors", {
+        body: JSON.stringify(payload),
+    });
+}
+
 async function startRecorder(
     recorderRef: MutableRefObject<MediaRecorder | null>,
     audioChunkRef: MutableRefObject<BlobPart[]>,
     audioStreamRef: MutableRefObject<MediaStream | undefined>,
-    playResponse: (objUrl: string) => void,
+    playResponse: (objUrl: string | Blob) => void,
     setLoadGptResponse: Dispatch<SetStateAction<"idle" | "success" | "loading" | "error">>,
     supportedMimeType: MutableRefObject<supportedMimeTypes>
 ) {
@@ -46,18 +59,16 @@ async function startRecorder(
             recorder.onstop = () => {
                 const audioBlob = new Blob(audioChunkRef.current, { type: supportedMimeType.current });
 
-                /* DEBUG: play back audio to confirm it was captured successfully */
-                // const sound = new Audio(URL.createObjectURL(audioBlob));
-                // sound.play();
-
                 /* upload audio to backend */
                 // start spinner
                 setLoadGptResponse("loading");
-                getGptResponseToQuery("/api/gpt", audioBlob, supportedMimeType.current, (data: Blob) => {
+                getGptResponseToQuery("/api/gpt", audioBlob, supportedMimeType.current, (audio: Blob) => {
                     setLoadGptResponse("success");
-                    playResponse(URL.createObjectURL(data));
+                    // playResponse(URL.createObjectURL(audio)); // deprecated for safari mobile
+                    playResponse(audio);
                 }).catch((err) => {
                     console.error(err);
+                    logRemoteError(err);
                 });
 
                 if (recorderRef.current && recorderRef.current.state !== "inactive") {
@@ -72,8 +83,8 @@ async function startRecorder(
                 */
             recorder.start(RECORDING_SLICE_DURATION);
         } catch (error: unknown) {
-            console.log("an error occurred");
             console.error(error);
+            logRemoteError(error);
         }
     }
 }
@@ -100,25 +111,40 @@ async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: str
 
 type audioPlayerState = "stopped" | "playing";
 
-function useAudioConfig() {
+function useAudioConfig(isMobileSafari?: boolean) {
     const [playerState, setPlayerState] = useState<audioPlayerState>("stopped");
-    const playAudio = useCallback((audioUrl: string, done?: (args?: any) => any, args?: any) => {
-        try {
-            const audioElement = new Audio(audioUrl);
-            audioElement.play();
-            setPlayerState("playing");
+    const playAudio = useCallback(
+        (audio: string | Blob, onPlayerStop?: (args?: any) => any, args?: any) => {
+            try {
+                let audioElement;
 
-            audioElement.onended = () => {
+                if (typeof audio === "string") {
+                    audioElement = new Audio(audio);
+                } else {
+                    audioElement = new Audio();
+                    audioElement.srcObject = audio;
+                }
+
+                /* weird hack for safari mobile - https://github.com/twilio/twilio-video.js/issues/922 */
+                if (isMobileSafari) audioElement.pause();
+
+                audioElement.play();
+                setPlayerState("playing");
+                audioElement.onended = () => {
+                    setPlayerState("stopped");
+                    onPlayerStop && onPlayerStop(args);
+                };
+            } catch (error) {
+                console.error(error);
+                logRemoteError(error);
+            }
+
+            return () => {
                 setPlayerState("stopped");
-                done && done(args);
             };
-        } catch (error) {
-            console.log("error playing audio");
-            console.error(error);
-        }
-
-        return () => {};
-    }, []);
+        },
+        [isMobileSafari]
+    );
 
     return { playAudio, playerState };
 }
@@ -128,10 +154,20 @@ export function VoiceRecorder() {
     const recorderRef = useRef<MediaRecorder | null>(null);
     const audioStreamRef = useRef<MediaStream | undefined>();
     const audioChunkRef = useRef<Array<BlobPart>>([]);
-    const { playAudio, playerState } = useAudioConfig();
     const [loadGptResponse, setLoadGptResponse] = useState<"idle" | "success" | "loading" | "error">("idle");
     const supportedMimeType = useRef<supportedMimeTypes>("audio/webm");
     const [appReady, setAppReady] = useState(false);
+
+    const isMobileSafari = useMemo(() => {
+        if (typeof window !== "undefined") {
+            const userAgent = window.navigator.userAgent;
+            return /iP(ad|hone|od).+Version\/[\d.]+.*Safari/i.test(userAgent);
+        }
+
+        return false;
+    }, []);
+
+    const { playAudio, playerState } = useAudioConfig(isMobileSafari);
 
     useEffect(() => {
         recorderRef.current = null;
@@ -171,6 +207,7 @@ export function VoiceRecorder() {
             startTimer();
         } catch (error: unknown) {
             console.error(error);
+            logRemoteError(error);
         }
     }
 
@@ -181,6 +218,7 @@ export function VoiceRecorder() {
             clearTimer();
         } catch (error: unknown) {
             console.error(error);
+            logRemoteError(error);
         }
     }
 
