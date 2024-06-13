@@ -313,7 +313,7 @@ function RecordingActionButton(props: recAxnButtonProps) {
 function Spinner() {
     return (
         <div className="h-full w-full py-4 flex flex-col items-center justify-center">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900" />
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-[#d099d750]" />
         </div>
     );
 }
