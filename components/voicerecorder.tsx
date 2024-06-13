@@ -121,30 +121,24 @@ async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: str
 
 type audioPlayerState = "stopped" | "playing";
 
-function useAudioConfig(isMobileSafari?: boolean) {
+function useAudioConfig(audioElementRef: MutableRefObject<HTMLAudioElement | null>) {
     const [playerState, setPlayerState] = useState<audioPlayerState>("stopped");
     const playAudio = useCallback(
         (audio: string, onPlayerStop?: (args?: any) => any, args?: any) => {
             try {
-                const audioElement = new Audio(audio);
+                if (audioElementRef.current === null) audioElementRef.current = new Audio();
 
-                audioElement.onerror = (error) => {
-                    /* want to find out what is going on with safari mobile */
-                    logRemoteError(error);
-                };
+                audioElementRef.current.src = audio;
+                audioElementRef.current.play();
 
-                /* weird hack for safari mobile - https://github.com/twilio/twilio-video.js/issues/922 */
-                if (isMobileSafari) audioElement.pause();
-
-                audioElement.play();
-
-                /* need to reclaim my sanity with the nonsense safari audio is pulling */
-                if (audioElement.paused) {
+                /* safari does not play audio longer than a few seconds and immediately sets it in a paused state */
+                if (audioElementRef.current.paused) {
                     logRemoteError({ message: "audio is not playing" });
-                } else logRemoteError({ message: "audio doesn't seem to be paused" });
+                    return;
+                }
 
                 setPlayerState("playing");
-                audioElement.onended = () => {
+                audioElementRef.current.onended = () => {
                     setPlayerState("stopped");
                     onPlayerStop && onPlayerStop(args);
                 };
@@ -157,7 +151,7 @@ function useAudioConfig(isMobileSafari?: boolean) {
                 setPlayerState("stopped");
             };
         },
-        [isMobileSafari]
+        [audioElementRef]
     );
 
     return { playAudio, playerState };
@@ -171,17 +165,8 @@ export function VoiceRecorder() {
     const [loadGptResponse, setLoadGptResponse] = useState<"idle" | "success" | "loading" | "error">("idle");
     const supportedMimeType = useRef<supportedMimeTypes>("audio/webm");
     const [appReady, setAppReady] = useState(false);
-
-    const isMobileSafari = useMemo(() => {
-        if (typeof window !== "undefined") {
-            const userAgent = window.navigator.userAgent;
-            return /iP(ad|hone|od).+Version\/[\d.]+.*Safari/i.test(userAgent);
-        }
-
-        return false;
-    }, []);
-
-    const { playAudio, playerState } = useAudioConfig(isMobileSafari);
+    const audioElementRef = useRef<HTMLAudioElement | null>(null);
+    const { playAudio, playerState } = useAudioConfig(audioElementRef);
 
     useEffect(() => {
         recorderRef.current = null;
