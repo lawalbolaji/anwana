@@ -227,10 +227,12 @@ export function VoiceRecorder() {
         <div className="flex h-[calc(100dvh)] justify-center items-center w-full bg-gradient-to-br from-15% via-[#DBE7FC] via-40% to-[#1D2951] to-90%">
             <div className="flex flex-col items-center justify-center w-[80%] h-[500px] mx-auto my-auto">
                 <div className="pt-4 md:pt-8">
-                    <h1 className="font-bold text-5xl text-center select-none tracking-widest line-1 anim-typewriter">
+                    <h1 className="font-bold md:text-5xl text:3xl text-center select-none tracking-widest line-1 anim-typewriter">
                         Hello!
                     </h1>
-                    <p className="text-md text-center select-none">I&quot;m Anwana, click anywhere to start!</p>
+                    <p className="md:text-md tex:sm text-center select-none">
+                        I&quot;m <span className="font-bold md:text-xl text-lg">Anwana</span>, click anywhere to start!
+                    </p>
                 </div>
 
                 <div className="w-[70%] flex flex-grow items-center justify-center relative">
