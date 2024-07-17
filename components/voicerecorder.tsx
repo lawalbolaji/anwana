@@ -1,7 +1,7 @@
 "use client";
 
 /* prettier-ignore */
-import { Dispatch, HTMLAttributes, MouseEventHandler, MutableRefObject, SVGProps, SetStateAction, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Dispatch, HTMLAttributes, MouseEventHandler, MutableRefObject, SVGProps, SetStateAction, useCallback, useEffect, useRef, useState } from "react";
 import MicIcon from "./icons/micicon";
 import { useStopWatch } from "./hooks/usestopwatch";
 import { formatTime } from "../lib/utils";
@@ -156,6 +156,15 @@ function useAudioConfig(audioElementRef: MutableRefObject<HTMLAudioElement | nul
 
     return { playAudio, playerState };
 }
+
+/* TODO: 
+    - remove record button, speak to prompt/interrupt
+    - Animate bubble to match frequency of speech
+    - reduce latency... use web sockets to eliminate connection overhead? local tts/stt solution? stream stt response?
+    - add conversational context...
+
+    - what to do with different speakers?
+ */
 
 export function VoiceRecorder() {
     const [recorderState, setRecorderState] = useState<recorderState>("stopped");
