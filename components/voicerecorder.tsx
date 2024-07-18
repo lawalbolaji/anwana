@@ -5,7 +5,8 @@ import { Dispatch, HTMLAttributes, MouseEventHandler, MutableRefObject, SVGProps
 import MicIcon from "./icons/micicon";
 import { useStopWatch } from "./hooks/usestopwatch";
 import { formatTime } from "../lib/utils";
-import { RECORDING_SLICE_DURATION } from "../lib/constants";
+import { RECORDING_SLICE_DURATION, VAD_SPEECH_THRESHOLD } from "../lib/constants";
+import { MicVAD, utils } from "@ricky0123/vad-web";
 
 type recorderState = "recording" | "stopped";
 type supportedMimeTypes = "audio/webm" | "audio/ogg" | "audio/mp4";
@@ -154,11 +155,45 @@ function useAudioConfig(audioElementRef: MutableRefObject<HTMLAudioElement | nul
         [audioElementRef]
     );
 
-    return { playAudio, playerState };
+    const destroyAudioNodes = useCallback((audioElementRef: MutableRefObject<HTMLAudioElement | null>) => {
+        audioElementRef.current!.pause();
+        audioElementRef.current!.currentTime = 0;
+        audioElementRef.current = null;
+    }, []);
+
+    const stopAudio = useCallback(
+        ({ withFade }: { withFade?: boolean }) => {
+            try {
+                if (audioElementRef.current && !audioElementRef.current.paused) {
+                    if (withFade === true) {
+                        const FADE_INTERVAL = 100; // ms
+                        const FADE_STEP = 0.2;
+                        const fadeInterval = setInterval(() => {
+                            if (+audioElementRef.current!.volume - FADE_STEP < 0) {
+                                clearInterval(fadeInterval);
+                                destroyAudioNodes(audioElementRef);
+                            } else {
+                                audioElementRef.current!.volume -= FADE_STEP;
+                            }
+                        }, FADE_INTERVAL);
+                        return;
+                    }
+
+                    destroyAudioNodes(audioElementRef);
+                }
+            } catch (error) {
+                console.error(error);
+                logRemoteError(error);
+            }
+        },
+        [audioElementRef, destroyAudioNodes]
+    );
+
+    return { playAudio, playerState, stopAudio };
 }
 
 /* TODO: 
-    - remove record button, speak to prompt/interrupt
+    - remove record button, speak to prompt/interrupt,  listen for pauses
     - Animate bubble to match frequency of speech
     - reduce latency... use web sockets to eliminate connection overhead? local tts/stt solution? stream stt response?
     - add conversational context...
@@ -175,7 +210,7 @@ export function VoiceRecorder() {
     const supportedMimeType = useRef<supportedMimeTypes>("audio/webm");
     const [appReady, setAppReady] = useState(false);
     const audioElementRef = useRef<HTMLAudioElement | null>(null);
-    const { playAudio, playerState } = useAudioConfig(audioElementRef);
+    const { playAudio, playerState, stopAudio } = useAudioConfig(audioElementRef);
 
     useEffect(() => {
         recorderRef.current = null;
@@ -200,6 +235,77 @@ export function VoiceRecorder() {
             if (timeoutRef) clearTimeout(timeoutRef);
         };
     }, [playAudio]);
+
+    /* initialize VAD */
+    const vadRef = useRef<MicVAD | null>(null);
+    useEffect(() => {
+        /* Visualize user audio - https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API*/
+        // const audioCtx = new AudioContext();
+        // const analyzer = audioCtx.createAnalyser();
+        // analyzer.fftSize = 2048;
+        // const dataArray = new Uint8Array(analyzer.frequencyBinCount);
+
+        async function initVAD() {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    echoCancellation: true,
+                    autoGainControl: true,
+                    noiseSuppression: true,
+                },
+            });
+            vadRef.current = await MicVAD.new({
+                stream,
+                positiveSpeechThreshold: VAD_SPEECH_THRESHOLD,
+                onFrameProcessed(probabilities) {
+                    // analyzer.getByteFrequencyData(dataArray);
+                    // console.log(dataArray);
+                },
+                onSpeechStart() {
+                    // turn off currently playing audio
+                    stopAudio({ withFade: true });
+
+                    // const source = audioCtx.createMediaStreamSource(stream);
+                    // source.connect(analyzer);
+                    // analyzer.connect(audioCtx.destination); /* source -> analyzer -> mic */
+
+                    // analyzer.getByteFrequencyData(dataArray);
+                    // // analyzer.getByteTimeDomainData(dataArray);
+                    // console.log(dataArray);
+                },
+                onSpeechEnd(audio) {
+                    /* audio is a Float32Array sampled at 16000 FPS */
+                    const wavBuffer = utils.encodeWAV(audio);
+                    const blob = new Blob([wavBuffer]);
+
+                    /* to play audio for debugging */
+                    // const base64 = utils.arrayBufferToBase64(wavBuffer);
+                    // const url = `data:audio/wav;base64,${base64}`;
+                    // playAudio(url);
+
+                    /* upload audio to backend */
+                    const onGptResponseReceived = (audio: Blob) => {
+                        playAudio(URL.createObjectURL(audio));
+                    };
+
+                    getGptResponseToQuery("/api/gpt", blob, "audio/wav", onGptResponseReceived).catch((err) => {
+                        console.error(err);
+                        logRemoteError(err);
+                    });
+                },
+            });
+            vadRef.current.start();
+        }
+
+        const clickListener = () => initVAD();
+        if (window) window.addEventListener("click", clickListener, { once: true });
+
+        return () => {
+            vadRef.current?.destroy();
+            window.removeEventListener("click", clickListener);
+            // audioCtx.close();
+        };
+    }, [playAudio, stopAudio]);
 
     async function handleStartRecording() {
         try {
