@@ -26,25 +26,20 @@ function logRemoteError(payload: unknown) {
 }
 
 async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: string, cb: (data: ArrayBuffer) => void) {
-    try {
-        const formData = new FormData();
-        formData.append("audio_blob", audioBlob, "file");
-        formData.append("type", fileType);
+    const formData = new FormData();
+    formData.append("audio_blob", audioBlob, "file");
+    formData.append("type", fileType);
 
-        const response = await fetch(url, {
-            method: "POST",
-            cache: "no-cache",
-            body: formData,
-        });
+    const response = await fetch(url, {
+        method: "POST",
+        cache: "no-cache",
+        body: formData,
+    });
 
-        if (!response.ok) throw new Error(response.statusText);
+    if (!response.ok) throw new Error(response.statusText);
 
-        const audioResponseBlob = await response.arrayBuffer();
-        cb(audioResponseBlob);
-    } catch (error) {
-        logRemoteError(error);
-        console.error(error);
-    }
+    const audioResponseBlob = await response.arrayBuffer();
+    cb(audioResponseBlob);
 }
 
 function useAudioConfig(onVolumeChange: (volume: number) => void /* this path will be extremely hot so be careful */) {
@@ -54,8 +49,12 @@ function useAudioConfig(onVolumeChange: (volume: number) => void /* this path wi
     const playAudio = useCallback(
         async (audio: string | ArrayBuffer, onPlayerStop?: (args?: any) => any, args?: any) => {
             try {
-                if (audioCtxRef.current === null)
-                    audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtxRef.current === null) {
+                    audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)({
+                        latencyHint: "playback",
+                        sampleRate: 24000,  /* ALL OPENAI SYNTHESIZED AUDIOS ARE SAMPLED AT 24KHZ */
+                    });
+                }
                 const analyzer = audioCtxRef.current.createAnalyser();
                 const dataArray = new Float32Array(analyzer.frequencyBinCount);
                 const bufferedSource = audioCtxRef.current.createBufferSource();
@@ -85,6 +84,8 @@ function useAudioConfig(onVolumeChange: (volume: number) => void /* this path wi
                 bufferedSource.addEventListener("ended", () => {
                     clearInterval(updateVolInterval);
                     onPlayerStop && onPlayerStop(args);
+                    audioCtxRef.current?.close();
+                    audioCtxRef.current = null;
                 });
             } catch (error) {
                 console.error(error);
@@ -224,9 +225,8 @@ export function VoiceRecorder() {
                 },
                 onSpeechStart() {
                     // turn off currently playing audio
-                    stopAudio();
+                    stopAudio(); // TODO: cancel inflight queries
                     source.connect(analyzer);
-                    // analyzer.connect(audioCtx.destination); /* source (mic) -> analyzer -> mic => causes feedback loop */
                 },
                 onSpeechEnd(audio) {
                     analyzer.disconnect(); // cleanup
@@ -236,18 +236,11 @@ export function VoiceRecorder() {
                     const wavBuffer = utils.encodeWAV(audio);
                     const blob = new Blob([wavBuffer]);
 
-                    /* to play audio for debugging */
-                    // const base64 = utils.arrayBufferToBase64(wavBuffer);
-                    // const url = `data:audio/wav;base64,${base64}`;
-                    // playAudio(url);
-
-                    /* upload audio to backend */
                     setLoadGptResponse("loading");
                     const onGptResponseReceived = (audio: ArrayBuffer) => {
                         setLoadGptResponse("success");
                         playAudio(audio);
                     };
-
                     getGptResponseToQuery("/api/gpt", blob, "audio/wav", onGptResponseReceived).catch((err) => {
                         setLoadGptResponse("error");
                         console.error(err);
