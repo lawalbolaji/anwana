@@ -15,7 +15,14 @@ export async function POST(req: Request) {
         const formData = await req.formData();
         const audio = formData.get("audio_blob");
         const mimeType = formData.get("type");
-        const fileExt = mimeType === "audio/webm" ? "webm" : mimeType === "audio/ogg" ? "ogg" : "mp4";
+        const fileExt =
+            mimeType === "audio/wav"
+                ? "wav"
+                : mimeType === "audio/webm"
+                ? "webm"
+                : mimeType === "audio/ogg"
+                ? "ogg"
+                : "mp4";
         const filename = `request.${fileExt}`;
 
         if (audio instanceof Blob) {
