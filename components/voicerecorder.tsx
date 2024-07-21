@@ -7,6 +7,7 @@ import { useStopWatch } from "./hooks/usestopwatch";
 import { formatTime } from "../lib/utils";
 import { RECORDING_SLICE_DURATION, VAD_SPEECH_THRESHOLD } from "../lib/constants";
 import { MicVAD, utils } from "@ricky0123/vad-web";
+import React from "react";
 
 type recorderState = "recording" | "stopped";
 type supportedMimeTypes = "audio/webm" | "audio/ogg" | "audio/mp4";
@@ -193,13 +194,45 @@ function useAudioConfig(audioElementRef: MutableRefObject<HTMLAudioElement | nul
 }
 
 /* TODO: 
-    - remove record button, speak to prompt/interrupt,  listen for pauses
-    - Animate bubble to match frequency of speech
+    - remove record button, speak to prompt/interrupt, listen for pauses ✔️
+    - Animate bubble to match frequency of speech ✔️
+
     - reduce latency... use web sockets to eliminate connection overhead? local tts/stt solution? stream stt response?
     - add conversational context...
 
     - what to do with different speakers?
  */
+
+/**
+ * Returns the estimated volume level given the time sampled data weighted on a 0-1 scale
+ * @param dataArray The time sampled data to be analyzed - Float32Array
+ */
+function calculateVolumeLevel(dataArray: Float32Array) {
+    /* RMS of the time sampled data (which is PCM in this case) gives a very good estimate of the effective loudness of the signal */
+    let sumOfSquares = 0;
+    for (const amplitude of Array.from(dataArray)) {
+        sumOfSquares += amplitude * amplitude;
+    }
+
+    return Math.sqrt(sumOfSquares / dataArray.length);
+}
+
+function AudioVolumeIndicator({ volume }: { volume: number }) {
+    const volRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (volRef.current) {
+            volRef.current.style.transform = `scale(${Math.max(0.1, 0.1 + volume) * 3})`;
+        }
+    }, [volume]);
+
+    return (
+        <div
+            className="absolute overflow-hidden inset-0 z-0 rounded-full scale-0 transition-all ease-in duration-100 bg-red-400"
+            ref={volRef}
+        />
+    );
+}
 
 export function VoiceRecorder() {
     const [recorderState, setRecorderState] = useState<recorderState>("stopped");
@@ -211,6 +244,7 @@ export function VoiceRecorder() {
     const [appReady, setAppReady] = useState(false);
     const audioElementRef = useRef<HTMLAudioElement | null>(null);
     const { playAudio, playerState, stopAudio } = useAudioConfig(audioElementRef);
+    const [volume, setVolume] = useState(0);
 
     useEffect(() => {
         recorderRef.current = null;
@@ -239,13 +273,12 @@ export function VoiceRecorder() {
     /* initialize VAD */
     const vadRef = useRef<MicVAD | null>(null);
     useEffect(() => {
-        /* Visualize user audio - https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API*/
-        // const audioCtx = new AudioContext();
-        // const analyzer = audioCtx.createAnalyser();
-        // analyzer.fftSize = 2048;
-        // const dataArray = new Uint8Array(analyzer.frequencyBinCount);
-
         async function initVAD() {
+            /* Visualize user audio - https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Visualizations_with_Web_Audio_API*/
+            const audioCtx = new AudioContext();
+            const analyzer = audioCtx.createAnalyser();
+            analyzer.fftSize = 2048;
+            const dataArray = new Float32Array(analyzer.frequencyBinCount);
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
@@ -254,27 +287,27 @@ export function VoiceRecorder() {
                     noiseSuppression: true,
                 },
             });
+            const source = audioCtx.createMediaStreamSource(stream);
+
             vadRef.current = await MicVAD.new({
                 stream,
                 positiveSpeechThreshold: VAD_SPEECH_THRESHOLD,
                 onFrameProcessed(probabilities) {
-                    // analyzer.getByteFrequencyData(dataArray);
-                    // console.log(dataArray);
+                    /* we can get a rough estimate of volume by computing the RMS of the PCM data */
+                    analyzer.getFloatTimeDomainData(dataArray);
+                    setVolume(calculateVolumeLevel(dataArray));
                 },
                 onSpeechStart() {
                     // turn off currently playing audio
                     stopAudio({ withFade: true });
-
-                    // const source = audioCtx.createMediaStreamSource(stream);
-                    // source.connect(analyzer);
-                    // analyzer.connect(audioCtx.destination); /* source -> analyzer -> mic */
-
-                    // analyzer.getByteFrequencyData(dataArray);
-                    // // analyzer.getByteTimeDomainData(dataArray);
-                    // console.log(dataArray);
+                    source.connect(analyzer);
+                    // analyzer.connect(audioCtx.destination); /* source (mic) -> analyzer -> mic => causes feedback loop */
                 },
                 onSpeechEnd(audio) {
-                    /* audio is a Float32Array sampled at 16000 FPS */
+                    analyzer.disconnect(); // cleanup
+                    source.disconnect();
+
+                    /* audio is a Float32Array sampled at 16000 HZ */
                     const wavBuffer = utils.encodeWAV(audio);
                     const blob = new Blob([wavBuffer]);
 
@@ -397,6 +430,9 @@ export function VoiceRecorder() {
                     )}
                 </div>
             </div>
+            {/* <div className="flex items-center justify-center relative w-[100px] h-[100px] mx-6 border rounded-lg">
+                <AudioVolumeIndicator volume={volume} />
+            </div> */}
         </div>
     );
 }
