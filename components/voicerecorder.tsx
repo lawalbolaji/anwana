@@ -25,7 +25,13 @@ function logRemoteError(payload: unknown) {
     });
 }
 
-async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: string, cb: (data: ArrayBuffer) => void) {
+async function getGptResponseToQuery(
+    url: string,
+    audioBlob: Blob,
+    fileType: string,
+    cb: (data: ArrayBuffer) => void,
+    signal?: AbortSignal
+) {
     const formData = new FormData();
     formData.append("audio_blob", audioBlob, "file");
     formData.append("type", fileType);
@@ -34,6 +40,7 @@ async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: str
         method: "POST",
         cache: "no-cache",
         body: formData,
+        signal,
     });
 
     if (!response.ok) throw new Error(response.statusText);
@@ -45,6 +52,7 @@ async function getGptResponseToQuery(url: string, audioBlob: Blob, fileType: str
 function useAudioConfig(onVolumeChange: (volume: number) => void /* this path will be extremely hot so be careful */) {
     const audioCtxRef = useRef<AudioContext | null>(null);
     const gainNodeRef = useRef<GainNode | null>(null);
+    const volUpdateIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
     const playAudio = useCallback(
         async (audio: string | ArrayBuffer, onPlayerStop?: (args?: any) => any, args?: any) => {
@@ -52,7 +60,7 @@ function useAudioConfig(onVolumeChange: (volume: number) => void /* this path wi
                 if (audioCtxRef.current === null) {
                     audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)({
                         latencyHint: "playback",
-                        sampleRate: 24000,  /* ALL OPENAI SYNTHESIZED AUDIOS ARE SAMPLED AT 24KHZ */
+                        sampleRate: 24000 /* ALL OPENAI SYNTHESIZED AUDIOS ARE SAMPLED AT 24KHZ */,
                     });
                 }
                 const analyzer = audioCtxRef.current.createAnalyser();
@@ -75,14 +83,14 @@ function useAudioConfig(onVolumeChange: (volume: number) => void /* this path wi
                 bufferedSource.connect(audioCtxRef.current.destination);
                 bufferedSource.start();
 
-                const updateVolInterval = setInterval(() => {
+                volUpdateIntervalRef.current = setInterval(() => {
                     analyzer.getFloatTimeDomainData(dataArray);
                     const volume = calculateVolumeLevel(dataArray);
                     onVolumeChange && onVolumeChange(volume);
-                }, 5); //ms
+                }, 100); //ms - animation takes a 100ms to complete
 
                 bufferedSource.addEventListener("ended", () => {
-                    clearInterval(updateVolInterval);
+                    clearInterval(volUpdateIntervalRef.current);
                     onPlayerStop && onPlayerStop(args);
                     audioCtxRef.current?.close();
                     audioCtxRef.current = null;
@@ -100,9 +108,11 @@ function useAudioConfig(onVolumeChange: (volume: number) => void /* this path wi
     const stopAudio = useCallback(() => {
         try {
             if (audioCtxRef.current && audioCtxRef.current.state === "running" && gainNodeRef.current) {
+                console.log("deleting existing audio context for speaker");
                 const FADE_DURATION_SEC = 1;
                 const now = audioCtxRef.current.currentTime;
                 gainNodeRef.current.gain.exponentialRampToValueAtTime(0.01, now + FADE_DURATION_SEC);
+                clearInterval(volUpdateIntervalRef.current);
 
                 setTimeout(() => {
                     audioCtxRef.current?.close();
@@ -122,7 +132,10 @@ function useAudioConfig(onVolumeChange: (volume: number) => void /* this path wi
     - remove record button, speak to prompt/interrupt, listen for pauses ✔️
     - Animate bubble to match frequency of speech ✔️
 
-    - reduce latency... use web sockets to eliminate connection overhead? local tts/stt solution? stream stt response?
+    - add modal to confirm device settings before launching app
+    - reduce latency... 
+        use webRTC to eliminate TCP connection overhead and reduce network latency? stream stt response?
+        local tts/stt solution? 
     - add conversational context...
 
     - what to do with different speakers?
@@ -170,6 +183,10 @@ export function VoiceRecorder() {
     const audioElementRef = useRef<HTMLAudioElement | null>(null);
     const [volume, setVolume] = useState(0);
     const audioCtxRef = useRef<AudioContext | null>(null);
+    const dataArrayRef = useRef<Float32Array | null>(null);
+    const analyzerRef = useRef<AnalyserNode | null>(null);
+    const microphoneRef = useRef<MediaStreamAudioSourceNode | null>(null);
+    const abortControllerRef = useRef<AbortController | undefined>(undefined);
     const { playAudio, stopAudio } = useAudioConfig(setVolume);
 
     useEffect(() => {
@@ -200,11 +217,6 @@ export function VoiceRecorder() {
     const vadRef = useRef<MicVAD | null>(null);
     useEffect(() => {
         async function initVAD() {
-            if (audioCtxRef.current === null)
-                audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-            const analyzer = audioCtxRef.current.createAnalyser();
-            analyzer.fftSize = 2048;
-            const dataArray = new Float32Array(analyzer.frequencyBinCount);
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     channelCount: 1,
@@ -213,24 +225,42 @@ export function VoiceRecorder() {
                     noiseSuppression: true,
                 },
             });
-            const source = audioCtxRef.current.createMediaStreamSource(stream);
 
             vadRef.current = await MicVAD.new({
                 stream,
                 positiveSpeechThreshold: VAD_SPEECH_THRESHOLD,
                 onFrameProcessed(probabilities) {
                     /* we can get a rough estimate of volume by computing the RMS of the PCM data */
-                    analyzer.getFloatTimeDomainData(dataArray);
-                    setVolume(calculateVolumeLevel(dataArray));
+                    if (analyzerRef.current && dataArrayRef.current) {
+                        analyzerRef.current.getFloatTimeDomainData(dataArrayRef.current);
+                        setVolume(calculateVolumeLevel(dataArrayRef.current));
+                    }
                 },
                 onSpeechStart() {
-                    // turn off currently playing audio
-                    stopAudio(); // TODO: cancel inflight queries
-                    source.connect(analyzer);
+                    /* tell anwana to shut up and cancel any inflight requests */
+                    stopAudio();
+                    abortControllerRef.current?.abort("new user query detected");
+
+                    /* create new audioCtx fr mic */
+                    if (audioCtxRef.current === null)
+                        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+                    microphoneRef.current = audioCtxRef.current.createMediaStreamSource(stream);
+
+                    analyzerRef.current = audioCtxRef.current.createAnalyser();
+                    analyzerRef.current.fftSize = 2048;
+
+                    dataArrayRef.current = new Float32Array(analyzerRef.current.frequencyBinCount);
+                    microphoneRef.current.connect(analyzerRef.current);
                 },
                 onSpeechEnd(audio) {
-                    analyzer.disconnect(); // cleanup
-                    source.disconnect();
+                    /* cleanup */
+                    analyzerRef.current?.disconnect();
+                    microphoneRef.current?.disconnect();
+                    audioCtxRef.current?.close();
+                    dataArrayRef.current = null;
+                    audioCtxRef.current = null;
+                    microphoneRef.current = null;
+                    analyzerRef.current = null;
 
                     /* audio is a Float32Array sampled at 16000 HZ */
                     const wavBuffer = utils.encodeWAV(audio);
@@ -241,7 +271,14 @@ export function VoiceRecorder() {
                         setLoadGptResponse("success");
                         playAudio(audio);
                     };
-                    getGptResponseToQuery("/api/gpt", blob, "audio/wav", onGptResponseReceived).catch((err) => {
+                    abortControllerRef.current = new AbortController();
+                    getGptResponseToQuery(
+                        "/api/gpt",
+                        blob,
+                        "audio/wav",
+                        onGptResponseReceived,
+                        abortControllerRef.current.signal
+                    ).catch((err) => {
                         setLoadGptResponse("error");
                         console.error(err);
                         logRemoteError(err);
@@ -257,7 +294,8 @@ export function VoiceRecorder() {
         return () => {
             vadRef.current?.destroy();
             window.removeEventListener("click", clickListener);
-            // audioCtx.close();
+            audioCtxRef.current?.close();
+            audioCtxRef.current = null;
         };
     }, [playAudio, stopAudio]);
 
