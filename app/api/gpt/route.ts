@@ -98,15 +98,22 @@ export async function POST(req: Request) {
         if (audio instanceof Blob) {
             const stream = audio.stream();
 
+            console.time("deepgram-stt");
             const transcriptionAsText = await deepgramClient.stt(stream);
             // const transcriptionAsText = await openaiClient.stt(stream);
             // const transcriptionAsText = await grokClient.stt(stream);
+            console.timeEnd("deepgram-stt");
 
-            console.log(`transcription request complete`);
+            // console.log(`transcription request complete`);
+            console.time("openai-inference");
             const speech = await openaiClient.getCompletion(transcriptionAsText);
-            console.log(`completion request complete`);
+            console.timeEnd("openai-inference");
+            // console.log(`completion request complete`);
+
+            console.time("openai-tts");
             const response = await openaiClient.tts(speech ?? "I didn't catch that, please come again");
-            console.log(`tts request complete`);
+            // console.log(`tts request complete`);
+            console.timeEnd("openai-tts");
 
             const blob = await response.arrayBuffer();
             const buffer = Buffer.from(blob);
