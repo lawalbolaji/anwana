@@ -98,8 +98,8 @@ export async function POST(req: Request) {
         if (audio instanceof Blob) {
             const stream = audio.stream();
 
-            // const transcriptionAsText = await deepgramClient.stt(stream);
-            const transcriptionAsText = await openaiClient.stt(stream);
+            const transcriptionAsText = await deepgramClient.stt(stream);
+            // const transcriptionAsText = await openaiClient.stt(stream);
             // const transcriptionAsText = await grokClient.stt(stream);
 
             console.log(`transcription request complete`);
