@@ -93,6 +93,7 @@ const openaiClient = (function () {
 
 export async function POST(req: Request) {
     try {
+        console.time("server processing");
         const formData = await req.formData();
         const audio = formData.get("audio_blob");
         if (audio instanceof Blob) {
@@ -120,6 +121,7 @@ export async function POST(req: Request) {
             const contentType = response.headers.get("content-type") || "application/octet-stream";
             const contentLength = response.headers.get("content-length") || blob.byteLength;
 
+            console.timeEnd("server processing");
             return new NextResponse(buffer, {
                 status: 200,
                 headers: {
