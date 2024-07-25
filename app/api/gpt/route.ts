@@ -120,33 +120,19 @@ export async function POST(req: Request) {
             // const transcriptionAsText = await grokClient.stt(stream);
             console.timeEnd("deepgram-stt");
 
-            // console.log(`transcription request complete`);
             // console.time("openai-inference");
             console.time("grok-inference");
             // const speech = await openaiClient.getCompletion(transcriptionAsText);
             const speech = await grokClient.getCompletion(transcriptionAsText);
             console.timeEnd("grok-inference");
             // console.timeEnd("openai-inference");
-            // console.log(`completion request complete`);
 
             console.time("openai-tts");
             const response = await openaiClient.tts(speech ?? "I didn't catch that, please come again");
-            // console.log(`tts request complete`);
             console.timeEnd("openai-tts");
 
-            const blob = await response.arrayBuffer();
-            const buffer = Buffer.from(blob);
-            const contentType = response.headers.get("content-type") || "application/octet-stream";
-            const contentLength = response.headers.get("content-length") || blob.byteLength;
-
             console.timeEnd("server processing");
-            return new NextResponse(buffer, {
-                status: 200,
-                headers: {
-                    "content-type": contentType,
-                    "content-length": contentLength + "",
-                },
-            });
+            return new NextResponse(response.body);
         }
     } catch (error) {
         console.log(error);
