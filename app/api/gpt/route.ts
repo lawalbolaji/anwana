@@ -41,6 +41,21 @@ const grokClient = (function () {
             return transcription.text;
         },
         async tts(speech: string) {},
+        async getCompletion(userPrompt: string) {
+            const completions = await groq.chat.completions.create({
+                model: "llama-3.1-405b-reasoning",
+                messages: [
+                    {
+                        role: "system",
+                        content:
+                            "You are a helpful assistant that helps with general knowledge questions about Nigeria. You want to prioritize the shortest answers but in any case, you answer must not exceed 30 words. Generate all your responses in Nigerian pidjin english!",
+                    },
+                    { role: "user", content: userPrompt + "" },
+                ],
+            });
+
+            return completions.choices[0].message.content;
+        },
     });
 })();
 
@@ -106,9 +121,12 @@ export async function POST(req: Request) {
             console.timeEnd("deepgram-stt");
 
             // console.log(`transcription request complete`);
-            console.time("openai-inference");
-            const speech = await openaiClient.getCompletion(transcriptionAsText);
-            console.timeEnd("openai-inference");
+            // console.time("openai-inference");
+            console.time("grok-inference");
+            // const speech = await openaiClient.getCompletion(transcriptionAsText);
+            const speech = await grokClient.getCompletion(transcriptionAsText);
+            console.timeEnd("grok-inference");
+            // console.timeEnd("openai-inference");
             // console.log(`completion request complete`);
 
             console.time("openai-tts");
