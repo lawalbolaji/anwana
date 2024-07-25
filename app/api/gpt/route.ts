@@ -100,8 +100,8 @@ export async function POST(req: Request) {
             const stream = audio.stream();
 
             console.time("deepgram-stt");
-            const transcriptionAsText = await deepgramClient.stt(stream);
-            // const transcriptionAsText = await openaiClient.stt(stream);
+            // const transcriptionAsText = await deepgramClient.stt(stream);
+            const transcriptionAsText = await openaiClient.stt(stream);
             // const transcriptionAsText = await grokClient.stt(stream);
             console.timeEnd("deepgram-stt");
 
