@@ -43,7 +43,7 @@ const grokClient = (function () {
         async tts(speech: string) {},
         async getCompletion(userPrompt: string) {
             const completions = await groq.chat.completions.create({
-                model: "llama-3.1-405b-reasoning",
+                model: "llama3-groq-70b-8192-tool-use-preview",
                 messages: [
                     {
                         role: "system",
