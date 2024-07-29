@@ -24,7 +24,7 @@ const deepgramClient = (function () {
     });
 })();
 
-const grokClient = (function () {
+const groqClient = (function () {
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
     const filename = `request.wav`;
     return Object.freeze({
@@ -116,12 +116,15 @@ export async function POST(req: Request) {
             /* you might notice high latency for this stt when testing locally */
             /* this is actually mostly network latency because deepgram's servers are not well distributed globally */
             /* their inference time is rapid, and since our instance actually runs in a region close to deepgram's servers, that is more important */
-            console.time("deepgram-stt");
-            const transcriptionAsText = await deepgramClient.stt(stream);
-            console.timeEnd("deepgram-stt");
+            // console.time("deepgram-stt");
+            console.time("groq-stt");
+            // const transcriptionAsText = await deepgramClient.stt(stream);
+            const transcriptionAsText = await groqClient.stt(stream);
+            console.timeEnd("groq-stt");
+            // console.timeEnd("deepgram-stt");
 
             console.time("openai-completion");
-            const speech = await grokClient.getCompletion(transcriptionAsText);
+            const speech = await groqClient.getCompletion(transcriptionAsText);
             console.timeEnd("openai-completion");
 
             console.time("openai-completion");
