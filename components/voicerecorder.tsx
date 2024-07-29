@@ -45,7 +45,9 @@ async function getGptResponseToQuery(
 
     if (!response.ok) throw new Error(response.statusText);
 
-    const audioResponseBlob = await response.arrayBuffer();
+    const audioResponseBlob =
+        await response.arrayBuffer(); /* TODO: write this stream directly to the audio player, no need to load it into the memory buffer */
+
     cb(audioResponseBlob);
 }
 

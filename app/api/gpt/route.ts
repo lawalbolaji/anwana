@@ -108,30 +108,18 @@ const openaiClient = (function () {
 
 export async function POST(req: Request) {
     try {
-        console.time("server processing");
         const formData = await req.formData();
         const audio = formData.get("audio_blob");
         if (audio instanceof Blob) {
             const stream = audio.stream();
 
-            console.time("deepgram-stt");
-            // const transcriptionAsText = await deepgramClient.stt(stream);
-            const transcriptionAsText = await openaiClient.stt(stream);
-            // const transcriptionAsText = await grokClient.stt(stream);
-            console.timeEnd("deepgram-stt");
-
-            // console.time("openai-inference");
-            console.time("grok-inference");
-            // const speech = await openaiClient.getCompletion(transcriptionAsText);
+            /* you might notice high latency for this stt when testing locally */
+            /* this is actually mostly network latency because deepgram's servers are not well distributed globally */
+            /* their inference time is rapid, and since our instance actually runs in a region close to deepgram's servers, that is more important */
+            const transcriptionAsText = await deepgramClient.stt(stream);
             const speech = await grokClient.getCompletion(transcriptionAsText);
-            console.timeEnd("grok-inference");
-            // console.timeEnd("openai-inference");
 
-            console.time("openai-tts");
             const response = await openaiClient.tts(speech ?? "I didn't catch that, please come again");
-            console.timeEnd("openai-tts");
-
-            console.timeEnd("server processing");
             return new NextResponse(response.body);
         }
     } catch (error) {
