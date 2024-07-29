@@ -117,19 +117,19 @@ export async function POST(req: Request) {
             /* this is actually mostly network latency because deepgram's servers are not well distributed globally */
             /* their inference time is rapid, and since our instance actually runs in a region close to deepgram's servers, that is more important */
             // console.time("deepgram-stt");
-            console.time("groq-stt");
+            console.time("openai-stt");
             // const transcriptionAsText = await deepgramClient.stt(stream);
             const transcriptionAsText = await groqClient.stt(stream);
-            console.timeEnd("groq-stt");
+            console.timeEnd("openai-stt");
             // console.timeEnd("deepgram-stt");
 
             console.time("openai-completion");
             const speech = await groqClient.getCompletion(transcriptionAsText);
             console.timeEnd("openai-completion");
 
-            console.time("openai-completion");
+            console.time("openai-tts");
             const response = await openaiClient.tts(speech ?? "I didn't catch that, please come again");
-            console.timeEnd("openai-completion");
+            console.timeEnd("openai-tts");
 
             return new NextResponse(response.body);
         }
