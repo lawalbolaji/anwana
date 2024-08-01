@@ -59,7 +59,6 @@ export async function POST(req: Request) {
                 model: "tts-1",
                 voice: "shimmer",
                 input: completions.choices[0].message.content ?? "I didn't catch that, please come again",
-                speed: 0.8,
             });
 
             console.log(`tts request complete`);
